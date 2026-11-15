@@ -262,10 +262,10 @@ export function computeMetrics(s: GameState): Metrics {
   const revenue = {
     income: (s.rates.income / 100) * incomeBase,
     corp: (s.rates.corp / 100) * output,
-    property: (s.rates.property / 100) * pop * 1.5 * ci,
+    property: (s.rates.property / 100) * pop * 1.1 * ci,
     tickets: connectedStations * 18 * Math.min(1, pop / 3000) * ci,
     tolls: px.tollsPerTile * highwayTiles,
-    transfers: L === 0 ? 0.1 * pop * ci : L === 1 ? 0.06 * pop * ci : 0,
+    transfers: L === 0 ? 0.06 * pop * ci : L === 1 ? 0.04 * pop * ci : 0,
     vat: L === 2 ? 0.07 * incomeBase : 0,
     total: 0,
   };
@@ -279,7 +279,7 @@ export function computeMetrics(s: GameState): Metrics {
     upkeep[cat] = v;
     upkeepTotal += v;
   }
-  const admin = (12 + 0.03 * pop) * (1 + 0.5 * L) * ci;
+  const admin = (18 + 0.045 * pop) * (1 + 0.5 * L) * ci;
   let policies = 0;
   for (const id of s.policies) policies += (P[id]?.upkeep ?? 0) * ci;
   let interest = 0;
