@@ -52,7 +52,9 @@ function report(r: A.Result) {
 }
 
 function renderTabs() {
-  $('tabs').innerHTML = P.TABS.map((t) => `<button data-tab="${t.id}" class="${t.id === tab ? 'on' : ''}">${t.label}</button>`).join('');
+  const tabs = P.TABS.filter((t) => t.id !== 'elections' || !game.sandbox);
+  if (game.sandbox && tab === 'elections') tab = 'city';
+  $('tabs').innerHTML = tabs.map((t) => `<button data-tab="${t.id}" class="${t.id === tab ? 'on' : ''}">${t.label}</button>`).join('');
 }
 
 function renderPanel() {
@@ -343,7 +345,8 @@ dlg.addEventListener('click', (e) => {
       const color = (document.getElementById('ng-color') as HTMLInputElement).value;
       const seedRaw = (document.getElementById('ng-seed') as HTMLInputElement).value.trim();
       const seed = seedRaw ? (/^\d+$/.test(seedRaw) ? Number(seedRaw) : hashString(seedRaw)) : undefined;
-      game = newGame({ seed, listName: name, platform: plat, color });
+      const sandbox = (document.getElementById('ng-sandbox') as HTMLInputElement).checked;
+      game = newGame({ seed, listName: name, platform: plat, color, sandbox });
       tab = 'city';
       tool = 'inspect';
       dlg.close();

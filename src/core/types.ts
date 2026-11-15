@@ -122,6 +122,8 @@ export interface GameState {
   playerList: { name: string; color: string; ideo: number[] };
   districtW: number[][];
   settings: Settings;
+  /** Mode entraînement libre : pas d'élections ni de cohabitation. */
+  sandbox: boolean;
   nextElection: number;
   lastElection: ElectionResult | null;
   electionHistory: { turn: number; level: Level; winner: string; playerShare: number; playerWon: boolean }[];

@@ -44,7 +44,7 @@ export function renderStats(s: GameState, m: Metrics): string {
     chip('👥', fmtN(s.pop)),
     chip('😊 Bien-être', m.wellbeing.toFixed(0), m.wellbeing >= 65 ? 'good' : m.wellbeing < 45 ? 'bad' : 'warn'),
     chip('👍 Popularité', s.satisfaction.toFixed(0) + ' %', s.satisfaction >= 50 ? 'good' : 'bad'),
-    chip('🗳️', left <= 0 ? 'ce trimestre' : `dans ${left} trim.`, s.cohabitation ? 'warn' : ''),
+    s.sandbox ? chip('🧪', 'Entraînement libre') : chip('🗳️', left <= 0 ? 'ce trimestre' : `dans ${left} trim.`, s.cohabitation ? 'warn' : ''),
   ].join('');
 }
 
@@ -196,16 +196,20 @@ export function panelPolitics(s: GameState, m: Metrics): string {
   }
   h += `</div>`;
 
-  if (Object.keys(s.councilSeats).length) {
+  if (!s.sandbox && Object.keys(s.councilSeats).length) {
     h += `<div class="card"><h3>${LEVEL_ASSEMBLY[s.level]} <small>(dernier scrutin)</small></h3>${seatsBar(s, s.councilSeats, s.lastElection?.totalSeats ?? 1)}</div>`;
   }
 
-  h += `<div class="card"><h3>Règles du jeu démocratique</h3>
+  if (s.sandbox) {
+    h += `<div class="card"><h3>Règles du jeu démocratique</h3><div class="mute">🧪 Mode entraînement libre : pas d’élections ni de cohabitation, les règles de scrutin ne s’appliquent pas.</div></div>`;
+  } else {
+    h += `<div class="card"><h3>Règles du jeu démocratique</h3>
     <div class="field"><label>Mode de scrutin</label><select data-act="setting" data-key="voteSystem" ${dis}>
       <option value="majoritaire" ${s.settings.voteSystem === 'majoritaire' ? 'selected' : ''}>Majoritaire à 2 tours (prime à la liste gagnante)</option>
       <option value="proportionnelle" ${s.settings.voteSystem === 'proportionnelle' ? 'selected' : ''}>Proportionnelle (coalitions)</option></select></div>
     <div class="field"><label>Durée du mandat</label><select data-act="setting" data-key="mandateQ" ${dis}>
       ${[12, 16, 20, 24].map((q) => `<option value="${q}" ${s.settings.mandateQ === q ? 'selected' : ''}>${q / 4} ans</option>`).join('')}</select></div></div>`;
+  }
 
   // Mesures
   h += `<div class="card"><h3>Mesures & lois</h3>`;
@@ -256,6 +260,7 @@ function seatsBar(s: GameState, seats: Record<string, number>, total: number): s
 
 // ------------------------------------------------------------------ Onglet Élections
 export function panelElections(s: GameState, m: Metrics, pollShares: Record<string, number>): string {
+  if (s.sandbox) return `<div class="card"><h3>🧪 Mode entraînement libre</h3><p class="mute">Pas d’élections ni de cohabitation dans ce mode : vous gardez la main en permanence pour vous entraîner.</p></div>`;
   const left = s.nextElection - s.turn;
   const titles = ['municipales', 'régionales', 'législatives'];
   let h = `<div class="card"><h3>Élections ${titles[s.level]}</h3>
@@ -357,7 +362,8 @@ export function panelHelp(): string {
     <li><b>Budget</b> : impôts, financement des services, emprunts. Les banques permettent de s’endetter ; la dette coûte des intérêts.</li>
     <li><b>Institutions</b> : lois, budget participatif, référendums, mode de scrutin.</li>
     <li><b>Élections</b> : des listes concurrentes (mais non violentes !) se disputent les électeurs de 7 secteurs. Perdre = cohabitation : plus de lois ni d’impôts à changer, jusqu’au prochain vote.</li>
-    <li>Atteignez la taille et le bien-être requis pour passer <b>Commune → Région → Pays</b> : le territoire s’agrandit, autoroutes, hôpitaux, universités puis Banque centrale se débloquent.</li></ul></div>
+    <li>Atteignez la taille et le bien-être requis pour passer <b>Commune → Région → Pays</b> : le territoire s’agrandit, autoroutes, hôpitaux, universités puis Banque centrale se débloquent.</li>
+    <li><b>🧪 Mode entraînement libre</b> (à choisir en début de partie) : désactive les élections et la cohabitation, pour s’entraîner à bâtir et équilibrer le budget sans contrainte politique.</li></ul></div>
   <div class="card"><h3>Commandes</h3><ul style="padding-left:18px;margin:0"><li>Molette : zoom · glisser (outil Inspecter) ou clic droit/milieu : déplacer</li><li>Espace : trimestre suivant · Échap : outil Inspecter</li><li>Menu ☰ : nouvelle partie, export/import de sauvegarde</li></ul></div>`;
 }
 
@@ -367,6 +373,7 @@ export function newGameDialog(hasSave: boolean): string {
   <div class="field"><label>Votre programme</label>${PLATFORMS.map((p, i) => `<label class="opt"><input type="radio" name="ng-plat" value="${p.id}" ${i === 0 ? 'checked' : ''}/> <b>${p.name}</b> — <span class="mute">${p.desc}</span></label>`).join('')}</div>
   <div class="field"><label>Couleur</label><input type="color" id="ng-color" value="#2b7de9"/></div>
   <div class="field"><label>Graine du monde (laisser vide = aléatoire)</label><input type="text" id="ng-seed" placeholder="ex. 12345" style="width:100%"/></div>
+  <div class="field"><label class="opt"><input type="checkbox" id="ng-sandbox"/> <b>🧪 Mode entraînement libre</b> — <span class="mute">pas d’élections ni de cohabitation, vous gardez la main en permanence.</span></label></div>
   <div class="actions">${hasSave ? '<button data-dlg="cancel">Reprendre la partie</button>' : ''}<button class="primary" data-dlg="start">Commencer</button></div>`;
 }
 

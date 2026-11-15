@@ -28,6 +28,7 @@ export interface NewGameOptions {
   listName?: string;
   platform?: string;
   color?: string;
+  sandbox?: boolean;
 }
 
 export function newGame(opts: NewGameOptions = {}): GameState {
@@ -67,6 +68,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     playerList: { name: opts.listName?.trim() || 'Concorde citoyenne', color: opts.color || '#2b7de9', ideo: [...platform.ideo] },
     districtW,
     settings: { voteSystem: 'majoritaire', mandateQ: 16, ric: false },
+    sandbox: !!opts.sandbox,
     nextElection: 16,
     lastElection: null,
     electionHistory: [],
@@ -85,6 +87,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
   };
   seedStartingTown(s);
   s.log.push({ turn: 0, kind: 'info', text: `Bienvenue, ${s.playerList.name} ! Votre commune compte ${s.pop} habitants. Bâtissez, équilibrez le budget et rendez la vie meilleure.` });
+  if (s.sandbox) s.log.push({ turn: 0, kind: 'info', text: 'Mode entraînement libre activé : pas d’élections ni de cohabitation, vous gardez la main en permanence.' });
   return s;
 }
 

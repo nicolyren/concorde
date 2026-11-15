@@ -460,7 +460,7 @@ export function endTurn(s: GameState): void {
   }
 
   // 9. Élections
-  if (s.turn >= s.nextElection) runElection(s, m2);
+  if (!s.sandbox && s.turn >= s.nextElection) runElection(s, m2);
 
   const m3 = s.turn >= 0 ? computeMetrics(s) : m2;
   s.history.push({
