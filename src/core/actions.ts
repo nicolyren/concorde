@@ -42,7 +42,7 @@ export const ZONE_COLOR: Record<Zone, string> = {
 };
 
 export function highwayAllowed(s: GameState): boolean {
-  return s.level >= 1 || (s.unlocks.highway ?? 0) > s.turn;
+  return s.level >= 1 || s.sandbox || (s.unlocks.highway ?? 0) > s.turn;
 }
 
 export function buildCost(s: GameState, id: string, idx: number): number {
@@ -65,7 +65,7 @@ export function canBuildBuilding(s: GameState, id: string, idx: number): Result 
   const t = s.tiles[idx];
   if (!def) return ko('Bâtiment inconnu.');
   if (!inTerritory(s, idx)) return ko('Hors de votre territoire.');
-  if (def.level > s.level) return ko(`Débloqué à l’échelle ${['communale', 'régionale', 'nationale'][def.level]}.`);
+  if (def.level > s.level && !s.sandbox) return ko(`Débloqué à l’échelle ${['communale', 'régionale', 'nationale'][def.level]}.`);
   if (t.building) return ko('Cette tuile est déjà occupée.');
   if (t.infra !== 'none') return ko('Une infrastructure occupe cette tuile.');
   if (!def.terrains.includes(t.terrain)) return ko('Terrain inadapté pour ce bâtiment.');

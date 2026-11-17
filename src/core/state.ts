@@ -87,7 +87,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
   };
   seedStartingTown(s);
   s.log.push({ turn: 0, kind: 'info', text: `Bienvenue, ${s.playerList.name} ! Votre commune compte ${s.pop} habitants. Bâtissez, équilibrez le budget et rendez la vie meilleure.` });
-  if (s.sandbox) s.log.push({ turn: 0, kind: 'info', text: 'Mode entraînement libre activé : pas d’élections ni de cohabitation, vous gardez la main en permanence.' });
+  if (s.sandbox) s.log.push({ turn: 0, kind: 'info', text: 'Mode entraînement libre activé : pas d’élections ni de cohabitation, et tous les bâtiments sont débloqués dès maintenant (prix normal, terrain compatible requis).' });
   return s;
 }
 

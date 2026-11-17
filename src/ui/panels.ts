@@ -65,7 +65,7 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
   for (const cat of CAT_ORDER) {
     h += `<h4>${CAT_LABEL[cat]}</h4>`;
     for (const def of BUILDINGS.filter((b) => b.cat === cat)) {
-      const lock = def.level > s.level ? `Disponible à l’échelle « ${LEVEL_NAME[def.level]} »` : null;
+      const lock = def.level > s.level && !s.sandbox ? `Disponible à l’échelle « ${LEVEL_NAME[def.level]} »` : null;
       const aff = def.cost * s.macro.costIndex;
       h += btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
     }
@@ -364,7 +364,7 @@ export function panelHelp(): string {
     <li><b>Institutions</b> : lois, budget participatif, référendums, mode de scrutin.</li>
     <li><b>Élections</b> : des listes concurrentes (mais non violentes !) se disputent les électeurs de 7 secteurs. Perdre = cohabitation : plus de lois ni d’impôts à changer, jusqu’au prochain vote.</li>
     <li>Atteignez la taille et le bien-être requis pour passer <b>Commune → Région → Pays</b> : le territoire s’agrandit, autoroutes, hôpitaux, universités puis Banque centrale se débloquent.</li>
-    <li><b>🧪 Mode entraînement libre</b> (à choisir en début de partie) : désactive les élections et la cohabitation, pour s’entraîner à bâtir et équilibrer le budget sans contrainte politique.</li></ul></div>
+    <li><b>🧪 Mode entraînement libre</b> (à choisir en début de partie) : désactive les élections et la cohabitation, et débloque tous les bâtiments dès le départ (il faut toujours un emplacement compatible et payer le prix normal), pour s’entraîner sans contrainte politique ni de progression.</li></ul></div>
   <div class="card"><h3>Commandes</h3><ul style="padding-left:18px;margin:0"><li>Molette : zoom · glisser (outil Inspecter) ou clic droit/milieu : déplacer</li><li>Espace : trimestre suivant · Échap : outil Inspecter</li><li>Menu ☰ : nouvelle partie, export/import de sauvegarde</li></ul></div>`;
 }
 
@@ -374,7 +374,7 @@ export function newGameDialog(hasSave: boolean): string {
   <div class="field"><label>Votre programme</label>${PLATFORMS.map((p, i) => `<label class="opt"><input type="radio" name="ng-plat" value="${p.id}" ${i === 0 ? 'checked' : ''}/> <b>${p.name}</b> — <span class="mute">${p.desc}</span></label>`).join('')}</div>
   <div class="field"><label>Couleur</label><input type="color" id="ng-color" value="#2b7de9"/></div>
   <div class="field"><label>Graine du monde (laisser vide = aléatoire)</label><input type="text" id="ng-seed" placeholder="ex. 12345" style="width:100%"/></div>
-  <div class="field"><label class="opt"><input type="checkbox" id="ng-sandbox"/> <b>🧪 Mode entraînement libre</b> — <span class="mute">pas d’élections ni de cohabitation, vous gardez la main en permanence.</span></label></div>
+  <div class="field"><label class="opt"><input type="checkbox" id="ng-sandbox"/> <b>🧪 Mode entraînement libre</b> — <span class="mute">pas d’élections ni de cohabitation, et tous les bâtiments sont débloqués dès le départ (prix normal, terrain compatible requis).</span></label></div>
   <div class="actions">${hasSave ? '<button data-dlg="cancel">Reprendre la partie</button>' : ''}<button class="primary" data-dlg="start">Commencer</button></div>`;
 }
 
