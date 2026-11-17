@@ -8,25 +8,42 @@ import { gauss, hashString } from './core/rng';
 import type { GameState, Metrics, Zone } from './core/types';
 import { MapView, type Overlay } from './ui/mapview';
 import * as P from './ui/panels';
+import { deleteGame, listGames, loadGame, migrateLegacySave, newId, saveGame } from './ui/saves';
 
-const SAVE_KEY = 'concorde-save-v1';
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 let game: GameState;
 let metrics: Metrics;
 let tool = 'inspect';
 let tab: P.Tab = 'city';
+let currentId: string | null = null;
+let appActive = false;
 
 const view = new MapView($<HTMLCanvasElement>('map'));
 const dlg = $<HTMLDialogElement>('dlg');
 
 // ------------------------------------------------------------------ utilitaires
 function save() {
-  try {
-    localStorage.setItem(SAVE_KEY, serialize(game));
-  } catch {
-    /* stockage indisponible */
-  }
+  if (!currentId) return;
+  saveGame(currentId, game);
+}
+
+function renderHome() {
+  $('home-list').innerHTML = P.homeList(listGames());
+}
+
+function showHome() {
+  appActive = false;
+  $('app').classList.add('hidden');
+  $('home').classList.remove('hidden');
+  renderHome();
+}
+
+function showGame() {
+  appActive = true;
+  $('home').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  view.resize();
 }
 
 let toastTimer = 0;
@@ -217,7 +234,7 @@ $('btn-center').addEventListener('click', () => view.centerOn(game, game.capital
 
 // ------------------------------------------------------------------ tour suivant
 function nextTurn() {
-  if (dlg.open) return;
+  if (dlg.open || !appActive) return;
   const before = game.lastElection?.turn ?? -1;
   const lvBefore = game.levelReady;
   endTurn(game);
@@ -238,6 +255,14 @@ function nextTurn() {
   }
 }
 $('btn-next').addEventListener('click', nextTurn);
+
+function pauseGame() {
+  if (!appActive) return;
+  save();
+  showHome();
+  toast('Partie mise en pause : reprenez-la quand vous voulez depuis l’accueil.');
+}
+$('btn-pause').addEventListener('click', pauseGame);
 
 // ------------------------------------------------------------------ interactions des panneaux
 $('toolbar').addEventListener('click', (e) => {
@@ -339,6 +364,11 @@ dlg.addEventListener('click', (e) => {
     case 'cancel':
     case 'close': dlg.close(); break;
     case 'new': openNewGame(true); break;
+    case 'confirm-delete':
+      deleteGame(b.dataset.id!);
+      dlg.close();
+      renderHome();
+      break;
     case 'start': {
       const name = (document.getElementById('ng-name') as HTMLInputElement).value;
       const plat = (document.querySelector('input[name=ng-plat]:checked') as HTMLInputElement)?.value;
@@ -347,9 +377,11 @@ dlg.addEventListener('click', (e) => {
       const seed = seedRaw ? (/^\d+$/.test(seedRaw) ? Number(seedRaw) : hashString(seedRaw)) : undefined;
       const sandbox = (document.getElementById('ng-sandbox') as HTMLInputElement).checked;
       game = newGame({ seed, listName: name, platform: plat, color, sandbox });
+      currentId = newId();
       tab = 'city';
-      tool = 'inspect';
       dlg.close();
+      showGame();
+      setTool('inspect');
       save();
       refresh();
       view.z = 1;
@@ -370,12 +402,18 @@ dlg.addEventListener('click', (e) => {
   }
 });
 $('importfile').addEventListener('change', async (e) => {
-  const f = (e.target as HTMLInputElement).files?.[0];
+  const input = e.target as HTMLInputElement;
+  const f = input.files?.[0];
+  input.value = '';
   if (!f) return;
   const g = deserialize(await f.text());
   if (!g) return toast('Fichier de sauvegarde invalide.', true);
   game = g;
+  currentId = newId();
+  tab = 'city';
   dlg.close();
+  showGame();
+  setTool('inspect');
   save();
   refresh();
   view.centerOn(game, game.capital);
@@ -383,9 +421,41 @@ $('importfile').addEventListener('change', async (e) => {
 });
 $('btn-menu').addEventListener('click', openMenu);
 
+// ------------------------------------------------------------------ accueil
+function resumeGame(id: string) {
+  const g = loadGame(id);
+  if (!g) {
+    toast('Cette sauvegarde est introuvable ou corrompue.', true);
+    renderHome();
+    return;
+  }
+  game = g;
+  currentId = id;
+  tab = 'city';
+  showGame();
+  setTool('inspect');
+  refresh();
+  view.centerOn(game, game.capital);
+}
+$('home-new').addEventListener('click', () => openNewGame(false));
+$('home-import').addEventListener('click', () => $('importfile').click());
+$('home-list').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('[data-home-act]') as HTMLElement | null;
+  if (!b) return;
+  const id = b.dataset.id!;
+  if (b.dataset.homeAct === 'resume') resumeGame(id);
+  else if (b.dataset.homeAct === 'delete') {
+    const meta = listGames().find((g) => g.id === id);
+    if (meta) {
+      dlg.innerHTML = P.confirmDeleteDialog(meta);
+      dlg.showModal();
+    }
+  }
+});
+
 window.addEventListener('keydown', (e) => {
   const tg = e.target as HTMLElement;
-  if (dlg.open || tg.tagName === 'INPUT' || tg.tagName === 'SELECT' || tg.tagName === 'TEXTAREA') return;
+  if (dlg.open || !appActive || tg.tagName === 'INPUT' || tg.tagName === 'SELECT' || tg.tagName === 'TEXTAREA') return;
   if (e.code === 'Space') {
     e.preventDefault();
     nextTurn();
@@ -394,24 +464,8 @@ window.addEventListener('keydown', (e) => {
 
 // ------------------------------------------------------------------ démarrage
 function boot() {
-  let loaded: GameState | null = null;
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) loaded = deserialize(raw);
-  } catch {
-    /* ignore */
-  }
-  if (loaded) {
-    game = loaded;
-    refresh();
-    view.centerOn(game, game.capital);
-  } else {
-    game = newGame({});
-    refresh();
-    view.centerOn(game, game.capital);
-    openNewGame(false);
-  }
-  setTool('inspect');
+  migrateLegacySave();
+  showHome();
 }
 requestAnimationFrame(boot);
 (window as unknown as { __concorde: unknown }).__concorde = { get game() { return game; }, B, FUNDING_LABEL };

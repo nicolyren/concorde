@@ -6,6 +6,7 @@ import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actio
 import { REFERENDUMS, campaignBonus, districtShares, listColor, listName } from '../core/elections';
 import { dateLabel } from '../core/state';
 import type { GameState, Metrics, Zone } from '../core/types';
+import type { GameMeta } from './saves';
 
 export const esc = (v: string) => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
@@ -375,6 +376,25 @@ export function newGameDialog(hasSave: boolean): string {
   <div class="field"><label>Graine du monde (laisser vide = aléatoire)</label><input type="text" id="ng-seed" placeholder="ex. 12345" style="width:100%"/></div>
   <div class="field"><label class="opt"><input type="checkbox" id="ng-sandbox"/> <b>🧪 Mode entraînement libre</b> — <span class="mute">pas d’élections ni de cohabitation, vous gardez la main en permanence.</span></label></div>
   <div class="actions">${hasSave ? '<button data-dlg="cancel">Reprendre la partie</button>' : ''}<button class="primary" data-dlg="start">Commencer</button></div>`;
+}
+
+export function homeList(games: GameMeta[]): string {
+  if (!games.length) return `<p class="mute">Aucune partie commencée pour l’instant. Créez-en une pour débuter.</p>`;
+  return games.map((g) => `<div class="save-item" data-id="${g.id}">
+    <div class="sw" style="background:${g.color}"></div>
+    <div class="info">
+      <div class="name">${esc(g.name)} ${g.sandbox ? '<span class="pill">🧪 entraînement</span>' : ''}</div>
+      <div class="meta">${dateLabel(g.turn)} · ${LEVEL_NAME[g.level]} · 👥 ${fmtN(g.pop)} · 😊 ${g.wellbeing} · 💰 ${fmtK(g.treasury)}</div>
+    </div>
+    <div class="actions" style="margin:0"><button class="small danger" data-home-act="delete" data-id="${g.id}" title="Supprimer">🗑️</button>
+      <button class="primary small" data-home-act="resume" data-id="${g.id}">▶️ Continuer</button></div>
+  </div>`).join('');
+}
+
+export function confirmDeleteDialog(g: GameMeta): string {
+  return `<h2>🗑️ Supprimer la partie</h2>
+  <p>Voulez-vous vraiment supprimer définitivement « <b>${esc(g.name)}</b> » (${dateLabel(g.turn)}) ? Cette action est irréversible.</p>
+  <div class="actions"><button data-dlg="close">Annuler</button><button class="danger" data-dlg="confirm-delete" data-id="${g.id}">Supprimer</button></div>`;
 }
 
 export function menuDialog(): string {

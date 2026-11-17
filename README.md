@@ -34,4 +34,4 @@ src/ui/     rendu Canvas hexagonal et panneaux
 tests/      tests Vitest + joueur automatique d'équilibrage
 ```
 
-La sauvegarde est automatique (localStorage) ; export/import JSON dans le menu ☰.
+La sauvegarde est automatique (localStorage), avec plusieurs parties en parallèle : la page d'accueil liste toutes les parties commencées, et le bouton ⏸️ Pause permet d'y revenir sans perdre sa progression. Export/import JSON dans le menu ☰.
