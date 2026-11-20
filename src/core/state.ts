@@ -29,6 +29,7 @@ export interface NewGameOptions {
   platform?: string;
   color?: string;
   sandbox?: boolean;
+  park?: boolean;
 }
 
 export function newGame(opts: NewGameOptions = {}): GameState {
@@ -55,20 +56,21 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     treasury: 1500,
     loans: [],
     nextId: 1,
-    pop: 300,
+    pop: opts.park ? 0 : 300,
     satisfaction: 60,
     wellbeing: 60,
-    rates: { income: 8, corp: 8, property: 8, transit: 18, toll: 1.5 },
+    rates: { income: 8, corp: 8, property: 8, transit: 18, toll: 1.5, entry: 12 },
     funding: { education: 1, health: 1, safety: 1, culture: 1, environment: 1, transport: 1 },
     policies: [],
     policyRate: 3,
     macro: { cycle: 0, inflation: 1.5, costIndex: 1, baseRate: 2.5 },
     bankStability: 70,
     parties: PARTIES.map((p) => ({ ...p, ideo: [...p.ideo] })),
-    playerList: { name: opts.listName?.trim() || 'Concorde citoyenne', color: opts.color || '#2b7de9', ideo: [...platform.ideo] },
+    playerList: { name: opts.listName?.trim() || (opts.park ? 'Mon parc' : 'Concorde citoyenne'), color: opts.color || '#2b7de9', ideo: [...platform.ideo] },
     districtW,
     settings: { voteSystem: 'majoritaire', mandateQ: 16, ric: false },
-    sandbox: !!opts.sandbox,
+    sandbox: !!opts.sandbox || !!opts.park,
+    park: !!opts.park,
     nextElection: 16,
     lastElection: null,
     electionHistory: [],
@@ -87,8 +89,12 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     history: [],
   };
   seedStartingTown(s);
-  s.log.push({ turn: 0, kind: 'info', text: `Bienvenue, ${s.playerList.name} ! Votre commune compte ${s.pop} habitants. Bâtissez, équilibrez le budget et rendez la vie meilleure.` });
-  if (s.sandbox) s.log.push({ turn: 0, kind: 'info', text: 'Mode entraînement libre activé : pas d’élections ni de cohabitation, et tous les bâtiments sont débloqués dès maintenant (prix normal, terrain compatible requis).' });
+  if (s.park) {
+    s.log.push({ turn: 0, kind: 'info', text: `Bienvenue à ${s.playerList.name} ! Construisez des attractions, fixez le prix du billet d’entrée et faites venir les visiteurs.` });
+  } else {
+    s.log.push({ turn: 0, kind: 'info', text: `Bienvenue, ${s.playerList.name} ! Votre commune compte ${s.pop} habitants. Bâtissez, équilibrez le budget et rendez la vie meilleure.` });
+    if (s.sandbox) s.log.push({ turn: 0, kind: 'info', text: 'Mode entraînement libre activé : pas d’élections ni de cohabitation, et tous les bâtiments sont débloqués dès maintenant (prix normal, terrain compatible requis).' });
+  }
   return s;
 }
 
@@ -100,7 +106,7 @@ function placeBuilding(s: GameState, idx: number, id: string) {
 
 function seedStartingTown(s: GameState) {
   const { W, H } = s;
-  placeBuilding(s, s.capital, 'mairie');
+  placeBuilding(s, s.capital, s.park ? 'entree_parc' : 'mairie');
   // Axe routier est-ouest
   const roads: number[] = [];
   const walk = (dirIndexParity: boolean) => {
@@ -119,7 +125,9 @@ function seedStartingTown(s: GameState) {
   };
   walk(true);
   walk(false);
-  const order = ['pavillons', 'pavillons', 'pavillons', 'ecole', 'clinique', 'ferme', 'atelier', 'commerces', 'solaire', 'commissariat'];
+  const order = s.park
+    ? ['maneges_enfants', 'grande_roue', 'stand_glaces', 'toilettes', 'solaire', 'parking_parc']
+    : ['pavillons', 'pavillons', 'pavillons', 'ecole', 'clinique', 'ferme', 'atelier', 'commerces', 'solaire', 'commissariat'];
   const candidates: number[] = [];
   for (const r of roads.concat([s.capital])) {
     for (const n of neighborsOf(r, W, H)) {
@@ -146,7 +154,9 @@ export function deserialize(raw: string): GameState | null {
     if (!s || s.version !== SAVE_VERSION || !Array.isArray(s.tiles)) return null;
     if (s.rates.transit === undefined) s.rates.transit = 18;
     if (s.rates.toll === undefined) s.rates.toll = 1.5;
+    if (s.rates.entry === undefined) s.rates.entry = 12;
     if (!s.fundraisers) s.fundraisers = [];
+    if (s.park === undefined) s.park = false;
     return s;
   } catch {
     return null;

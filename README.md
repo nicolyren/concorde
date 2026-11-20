@@ -11,6 +11,7 @@ Jeu de gestion **coopératif et positif**, en tour par tour (1 tour = 1 trimestr
 - **Services** : écoles (primaire, collège-lycée, université), santé, sécurité & pompiers, culture, énergie (solaire, éolien, gaz, géothermie, nucléaire), environnement.
 - **Institutions & démocratie** : conseil municipal → conseil régional → parlement ; 16 mesures/lois ; budget participatif ; **référendums** ; partis rivaux (non violents !), campagnes, sondages, **élections** par secteur (majoritaire à 2 tours ou proportionnelle, coalitions), cohabitation en cas de défaite.
 - **Indice de bien-être** (9 indicateurs) et **bac à sable** : montez en échelle Commune → Région → Pays en tenant population et bien-être.
+- **🎢 Mode Parc d'attraction** (depuis la page d'accueil) : un bac à sable séparé où l'on construit des attractions, de la restauration et des services pour attirer des visiteurs. Prix du billet d'entrée réglable, capacité des manèges et files d'attente, variété des sensations, réputation — sans élections ni progression de niveau.
 
 ## Lancer en local
 

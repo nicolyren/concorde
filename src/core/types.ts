@@ -121,7 +121,7 @@ export interface GameState {
   pop: number;
   satisfaction: number;
   wellbeing: number;
-  rates: { income: number; corp: number; property: number; transit: number; toll: number };
+  rates: { income: number; corp: number; property: number; transit: number; toll: number; entry: number };
   funding: Record<string, number>;
   policies: string[];
   policyRate: number;
@@ -133,6 +133,8 @@ export interface GameState {
   settings: Settings;
   /** Mode entraînement libre : pas d'élections ni de cohabitation. */
   sandbox: boolean;
+  /** Mode Parc d'attraction : remplace la gestion de commune par la gestion d'un parc (visiteurs, attractions, billetterie). */
+  park: boolean;
   nextElection: number;
   lastElection: ElectionResult | null;
   electionHistory: { turn: number; level: Level; winner: string; playerShare: number; playerWon: boolean }[];

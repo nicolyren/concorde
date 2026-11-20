@@ -64,6 +64,7 @@ export function canBuildBuilding(s: GameState, id: string, idx: number): Result 
   const def = B[id];
   const t = s.tiles[idx];
   if (!def) return ko('Bâtiment inconnu.');
+  if (!(def.modes ?? ['city']).includes(s.park ? 'park' : 'city')) return ko('Indisponible dans ce mode de jeu.');
   if (!inTerritory(s, idx)) return ko('Hors de votre territoire.');
   if (def.level > s.level && !s.sandbox) return ko(`Débloqué à l’échelle ${['communale', 'régionale', 'nationale'][def.level]}.`);
   if (t.building) return ko('Cette tuile est déjà occupée.');
@@ -160,11 +161,12 @@ export function plantForest(s: GameState, idx: number): Result {
 
 // ---------------------------------------------------------------- Finances
 
-export function setRate(s: GameState, key: 'income' | 'corp' | 'property' | 'transit' | 'toll', v: number): Result {
+export function setRate(s: GameState, key: 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry', v: number): Result {
   const f = frozen(s);
   if (f) return f;
   if (key === 'transit') s.rates.transit = Math.max(0, Math.min(40, Math.round(v)));
   else if (key === 'toll') s.rates.toll = Math.max(0, Math.min(5, Math.round(v * 10) / 10));
+  else if (key === 'entry') s.rates.entry = Math.max(0, Math.min(50, Math.round(v)));
   else s.rates[key] = Math.max(0, Math.min(30, Math.round(v)));
   return ok();
 }

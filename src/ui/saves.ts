@@ -15,6 +15,7 @@ export interface GameMeta {
   treasury: number;
   wellbeing: number;
   sandbox: boolean;
+  park: boolean;
   updatedAt: number;
 }
 
@@ -39,7 +40,7 @@ function metaOf(id: string, s: GameState): GameMeta {
   return {
     id, name: s.playerList.name, color: s.playerList.color, level: s.level, turn: s.turn,
     pop: s.pop, treasury: Math.round(s.treasury), wellbeing: Math.round(s.wellbeing),
-    sandbox: s.sandbox, updatedAt: Date.now(),
+    sandbox: s.sandbox, park: s.park, updatedAt: Date.now(),
   };
 }
 

@@ -126,6 +126,8 @@ export function computeMetrics(s: GameState): Metrics {
   let housingCap = 0, j0 = 0, j1 = 0;
   let eduP = 0, eduS = 0, eduH = 0, health = 0, safety = 0, cult = 0, transit = 0;
   let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, econBonus = 0, banks = 0;
+  let thrillWeighted = 0;
+  const rideTypes = new Set<string>();
   let servedCount = 0, totalBuildings = 0;
   let roadTiles = 0, highwayTiles = 0, railTiles = 0, natureTiles = 0, forestTiles = 0;
   const upkeepRaw: Record<string, number> = {};
@@ -153,9 +155,14 @@ export function computeMetrics(s: GameState): Metrics {
       if (sv === 1) servedCount++;
     }
     upkeepRaw[def.cat] = (upkeepRaw[def.cat] ?? 0) + def.upkeep;
-    if (def.housing) {
-      housingCap += def.housing * sv;
-      dist[t.district].housing += def.housing * sv;
+    if (def.housing || def.rideCapacity) {
+      const cap = (def.housing ?? 0) + (def.rideCapacity ?? 0);
+      housingCap += cap * sv;
+      dist[t.district].housing += cap * sv;
+      if (def.rideCapacity) {
+        thrillWeighted += (def.thrill ?? 0) * def.rideCapacity * sv;
+        rideTypes.add(def.id);
+      }
     }
     if (def.jobs) {
       if (def.skilled) j1 += def.jobs * sv;
@@ -187,12 +194,18 @@ export function computeMetrics(s: GameState): Metrics {
   housingCap *= 1 + px.housingCap;
   const effOf = (key: string) => eff(s.funding[key] ?? 1);
 
-  // ---- Éducation
-  const w = L === 0 ? [0.55, 0.45, 0] : [0.4, 0.35, 0.25];
-  const covP = Math.min(1, eduP / (pop * 0.12));
-  const covS = Math.min(1, eduS / (pop * 0.1));
-  const covH = Math.min(1, eduH / (pop * 0.05));
-  const eduIdx = clamp(100 * (w[0] * covP + w[1] * covS + w[2] * covH) * effOf('education') + px.edu, 0, 100);
+  // ---- Éducation (mode Parc : variété des attractions, basée sur les sensations et la diversité des manèges)
+  let eduIdx: number;
+  if (s.park) {
+    const avgThrill = housingCap > 0 ? thrillWeighted / housingCap : 0;
+    eduIdx = clamp(avgThrill * 60 + rideTypes.size * 8, 0, 100);
+  } else {
+    const w = L === 0 ? [0.55, 0.45, 0] : [0.4, 0.35, 0.25];
+    const covP = Math.min(1, eduP / (pop * 0.12));
+    const covS = Math.min(1, eduS / (pop * 0.1));
+    const covH = Math.min(1, eduH / (pop * 0.05));
+    eduIdx = clamp(100 * (w[0] * covP + w[1] * covS + w[2] * covH) * effOf('education') + px.edu, 0, 100);
+  }
 
   // ---- Emploi
   const workforce = pop * 0.55;
@@ -207,7 +220,9 @@ export function computeMetrics(s: GameState): Metrics {
   const employmentIdx = clamp(100 * (1 - 2.5 * unemployment) + px.employment, 0, 100);
 
   // ---- Énergie
-  const energyDemand = (pop * 0.4 + filled * 0.8) * (1 + px.energyDemand);
+  const energyDemand = s.park
+    ? (housingCap * 0.08 + filled * 0.8) * (1 + px.energyDemand)
+    : (pop * 0.4 + filled * 0.8) * (1 + px.energyDemand);
   const energyRatio = energyDemand > 0 ? supply / energyDemand : 1;
   const energyIdx = clamp(100 * Math.min(1, energyRatio), 0, 100);
   const energyFactor = energyRatio >= 1 ? 1 : 0.4 + 0.6 * energyRatio;
@@ -259,7 +274,16 @@ export function computeMetrics(s: GameState): Metrics {
   const attract = clamp(0.35 + 0.65 * (wellbeing / 100), 0.3, 1) * (unemployment > 0.25 ? 0.85 : 1);
 
   // ---- Finances
-  const revenue = {
+  const revenue = s.park ? {
+    income: 0,
+    corp: output,
+    property: 0,
+    tickets: (s.rates.entry / 1000) * pop * ci,
+    tolls: 0,
+    transfers: 0,
+    vat: 0,
+    total: 0,
+  } : {
     income: (s.rates.income / 100) * incomeBase,
     corp: (s.rates.corp / 100) * output,
     property: (s.rates.property / 100) * pop * 1.1 * ci,
@@ -279,7 +303,7 @@ export function computeMetrics(s: GameState): Metrics {
     upkeep[cat] = v;
     upkeepTotal += v;
   }
-  const admin = (18 + 0.045 * pop) * (1 + 0.5 * L) * ci;
+  const admin = s.park ? (12 + 0.008 * pop) * ci : (18 + 0.045 * pop) * (1 + 0.5 * L) * ci;
   let policies = 0;
   for (const id of s.policies) policies += (P[id]?.upkeep ?? 0) * ci;
   let interest = 0;
@@ -305,8 +329,9 @@ export function computeMetrics(s: GameState): Metrics {
     return { name: DISTRICT_NAMES[k], pop: pop * share, share, delta, polluters: d.polluters, greens: d.greens, services: d.services };
   });
 
-  const taxPenalty =
-    Math.max(0, s.rates.income - 14) * 0.5 + Math.max(0, s.rates.property - 14) * 0.5 + Math.max(0, s.rates.corp - 14) * 0.2;
+  const taxPenalty = s.park
+    ? Math.max(0, s.rates.entry - 25) * 1.2
+    : Math.max(0, s.rates.income - 14) * 0.5 + Math.max(0, s.rates.property - 14) * 0.5 + Math.max(0, s.rates.corp - 14) * 0.2;
 
   void radius;
   return {
@@ -364,7 +389,9 @@ function rollEvents(s: GameState, m: Metrics) {
   if (m.idx.edu > 60 && rand(s) < 0.04) {
     const amount = Math.round(80 * scale * ci);
     s.treasury += amount;
-    pushLog(s, 'good', `Une jeune entreprise issue de vos écoles s’installe : +${amount} k€ de recettes.`);
+    pushLog(s, 'good', s.park
+      ? `Le bouche-à-oreille sur la variété des attractions attire des visiteurs supplémentaires : +${amount} k€ de recettes.`
+      : `Une jeune entreprise issue de vos écoles s’installe : +${amount} k€ de recettes.`);
   }
 }
 
@@ -485,7 +512,7 @@ export function endTurn(s: GameState): void {
 
   const m2 = computeMetrics(s);
   s.wellbeing = m2.wellbeing;
-  if (s.level < 2 && s.pop >= LEVEL_POP_GOAL[s.level] && s.wellbeing >= LEVEL_WB_GOAL[s.level]) s.levelStreak++;
+  if (!s.park && s.level < 2 && s.pop >= LEVEL_POP_GOAL[s.level] && s.wellbeing >= LEVEL_WB_GOAL[s.level]) s.levelStreak++;
   else s.levelStreak = 0;
   const wasReady = s.levelReady;
   s.levelReady = s.level < 2 && s.levelStreak >= 2;

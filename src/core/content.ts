@@ -2,7 +2,7 @@ import type { Level, Party, Terrain } from './types';
 
 export type Cat =
   | 'logement' | 'economie' | 'energie' | 'education' | 'sante' | 'securite'
-  | 'culture' | 'environnement' | 'finance' | 'transport' | 'admin';
+  | 'culture' | 'environnement' | 'finance' | 'transport' | 'admin' | 'attraction';
 
 export const CAT_LABEL: Record<Cat, string> = {
   logement: 'Logement',
@@ -16,12 +16,27 @@ export const CAT_LABEL: Record<Cat, string> = {
   finance: 'Banques',
   transport: 'Transports',
   admin: 'Administration',
+  attraction: 'Attractions',
 };
 
 export const CAT_ORDER: Cat[] = [
   'logement', 'economie', 'energie', 'education', 'sante', 'securite',
   'culture', 'environnement', 'finance', 'transport',
 ];
+
+/** Ordre et libellés des catégories dans la barre d'outils du mode « Parc d'attraction ». */
+export const PARK_CAT_ORDER: Cat[] = ['attraction', 'economie', 'culture', 'sante', 'securite', 'environnement', 'transport', 'energie', 'finance'];
+export const PARK_CAT_LABEL: Partial<Record<Cat, string>> = {
+  attraction: 'Attractions',
+  economie: 'Restauration & boutiques',
+  culture: 'Spectacles',
+  sante: 'Secours & hygiène',
+  securite: 'Sécurité',
+  environnement: 'Espaces verts',
+  transport: 'Accès & stationnement',
+  energie: 'Énergie',
+  finance: 'Banques',
+};
 
 /** Catégories financées par une ligne de budget réglable */
 export const FUNDING_KEY: Partial<Record<Cat, string>> = {
@@ -74,6 +89,12 @@ export interface BuildingDef {
   station?: boolean;
   rateControl?: boolean;
   fire?: number;
+  /** Capacité d'accueil d'une attraction (mode Parc). */
+  rideCapacity?: number;
+  /** Intensité des sensations d'une attraction, 0-1 (mode Parc). */
+  thrill?: number;
+  /** Modes de jeu où ce bâtiment est proposé. Par défaut : commune/région/pays uniquement. */
+  modes?: ('city' | 'park')[];
 }
 
 const LAND: Terrain[] = ['plain', 'forest', 'hill'];
@@ -95,10 +116,10 @@ export const BUILDINGS: BuildingDef[] = [
   { id: 'bureaux', name: 'Parc tertiaire', icon: '💼', cat: 'economie', desc: '100 emplois qualifiés (demande de la formation).', cost: 520, upkeep: 11, level: 1, turns: 2, terrains: FLAT, jobs: 100, skilled: true, prod: 8.5 },
   { id: 'innovation', name: 'Pôle d’innovation', icon: '🔬', cat: 'economie', desc: '200 emplois très qualifiés.', cost: 1100, upkeep: 22, level: 2, turns: 3, terrains: FLAT, jobs: 200, skilled: true, prod: 11 },
 
-  { id: 'solaire', name: 'Centrale solaire', icon: '☀️', cat: 'energie', desc: 'Énergie propre : 900 unités.', cost: 260, upkeep: 4, level: 0, turns: 1, terrains: FLAT, supply: 900 },
-  { id: 'eolien', name: 'Parc éolien', icon: '🌬️', cat: 'energie', desc: 'Énergie propre : 1 300 unités.', cost: 380, upkeep: 6, level: 0, turns: 1, terrains: FLAT, supply: 1300 },
-  { id: 'gaz', name: 'Centrale à gaz', icon: '🔥', cat: 'energie', desc: 'Beaucoup d’énergie (4 500) mais polluante.', cost: 600, upkeep: 25, level: 0, turns: 2, terrains: FLAT, supply: 4500, pollution: 2.5 },
-  { id: 'geothermie', name: 'Géothermie', icon: '♨️', cat: 'energie', desc: 'Énergie propre et stable : 3 000 unités.', cost: 900, upkeep: 11, level: 1, turns: 2, terrains: FLAT, supply: 3000 },
+  { id: 'solaire', name: 'Centrale solaire', icon: '☀️', cat: 'energie', desc: 'Énergie propre : 900 unités.', cost: 260, upkeep: 4, level: 0, turns: 1, terrains: FLAT, supply: 900, modes: ['city', 'park'] },
+  { id: 'eolien', name: 'Parc éolien', icon: '🌬️', cat: 'energie', desc: 'Énergie propre : 1 300 unités.', cost: 380, upkeep: 6, level: 0, turns: 1, terrains: FLAT, supply: 1300, modes: ['city', 'park'] },
+  { id: 'gaz', name: 'Centrale à gaz', icon: '🔥', cat: 'energie', desc: 'Beaucoup d’énergie (4 500) mais polluante.', cost: 600, upkeep: 25, level: 0, turns: 2, terrains: FLAT, supply: 4500, pollution: 2.5, modes: ['city', 'park'] },
+  { id: 'geothermie', name: 'Géothermie', icon: '♨️', cat: 'energie', desc: 'Énergie propre et stable : 3 000 unités.', cost: 900, upkeep: 11, level: 1, turns: 2, terrains: FLAT, supply: 3000, modes: ['city', 'park'] },
   { id: 'nucleaire', name: 'Centrale nucléaire', icon: '⚛️', cat: 'energie', desc: 'Très grosse capacité (15 000), faible pollution, coûteuse.', cost: 3500, upkeep: 56, level: 2, turns: 4, terrains: ['plain'], supply: 15000, pollution: 0.4 },
 
   { id: 'ecole', name: 'École primaire', icon: '🏫', cat: 'education', desc: 'Capacité 500 élèves.', cost: 300, upkeep: 20, level: 0, turns: 1, terrains: FLAT, eduP: 500 },
@@ -118,13 +139,35 @@ export const BUILDINGS: BuildingDef[] = [
   { id: 'parc', name: 'Parc urbain', icon: '🌳', cat: 'environnement', desc: 'Espace vert : absorbe la pollution, +5 culture.', cost: 90, upkeep: 4, level: 0, turns: 1, terrains: LAND, green: 1.5, culture: 5 },
   { id: 'epuration', name: 'Recyclage & épuration', icon: '♻️', cat: 'environnement', desc: 'Absorbe fortement la pollution.', cost: 400, upkeep: 17, level: 0, turns: 2, terrains: FLAT, absorb: 3 },
 
-  { id: 'banque_locale', name: 'Banque locale', icon: '🏦', cat: 'finance', desc: 'Permet d’emprunter (+1 500 de plafond), 30 emplois qualifiés.', cost: 400, upkeep: 8, level: 0, turns: 2, terrains: FLAT, credit: 1500, jobs: 30, skilled: true, prod: 6 },
-  { id: 'banque_coop', name: 'Banque coopérative citoyenne', icon: '🤝', cat: 'finance', desc: 'Microcrédit : +4 % de production, plafond +1 000.', cost: 700, upkeep: 11, level: 1, turns: 2, terrains: FLAT, credit: 1000, econBonus: 0.04, jobs: 40, skilled: true, prod: 5 },
+  { id: 'banque_locale', name: 'Banque locale', icon: '🏦', cat: 'finance', desc: 'Permet d’emprunter (+1 500 de plafond), 30 emplois qualifiés.', cost: 400, upkeep: 8, level: 0, turns: 2, terrains: FLAT, credit: 1500, jobs: 30, skilled: true, prod: 6, modes: ['city', 'park'] },
+  { id: 'banque_coop', name: 'Banque coopérative citoyenne', icon: '🤝', cat: 'finance', desc: 'Microcrédit : +4 % de production, plafond +1 000.', cost: 700, upkeep: 11, level: 1, turns: 2, terrains: FLAT, credit: 1000, econBonus: 0.04, jobs: 40, skilled: true, prod: 5, modes: ['city', 'park'] },
   { id: 'banque_centrale', name: 'Banque centrale', icon: '🏛️', cat: 'finance', desc: 'Fixe le taux directeur et stabilise le système bancaire (une seule).', cost: 3000, upkeep: 70, level: 2, turns: 4, terrains: FLAT, credit: 4000, rateControl: true, unique: true, jobs: 120, skilled: true, prod: 6 },
 
   { id: 'depot', name: 'Dépôt de bus / tram', icon: '🚌', cat: 'transport', desc: 'Transports en commun : 6 000 déplacements.', cost: 300, upkeep: 22, level: 0, turns: 1, terrains: FLAT, transit: 6000 },
   { id: 'gare', name: 'Gare', icon: '🚉', cat: 'transport', desc: 'À relier à une autre gare par des rails pour former une ligne.', cost: 500, upkeep: 17, level: 0, turns: 2, terrains: FLAT, station: true, transit: 800 },
   { id: 'aeroport', name: 'Aéroport régional', icon: '✈️', cat: 'transport', desc: '+6 % de production, mais polluant.', cost: 4000, upkeep: 63, level: 2, turns: 4, terrains: ['plain'], econBonus: 0.06, pollution: 3, jobs: 120, prod: 5 },
+
+  // ---------------------------------------------------------------- Mode Parc d'attraction
+  { id: 'entree_parc', name: 'Entrée du parc', icon: '🎪', cat: 'admin', desc: 'Cœur du parc. Point de départ du réseau d’allées.', cost: 0, upkeep: 0, level: 0, turns: 0, terrains: LAND, unique: true, modes: ['park'] },
+
+  { id: 'maneges_enfants', name: 'Manège enfants', icon: '🎠', cat: 'attraction', desc: 'Attraction familiale : 6 000 visiteurs/trim.', cost: 150, upkeep: 6, level: 0, turns: 1, terrains: FLAT, rideCapacity: 6000, thrill: 0.1, jobs: 5, modes: ['park'] },
+  { id: 'autos_tamponneuses', name: 'Autos tamponneuses', icon: '🚗', cat: 'attraction', desc: 'Attraction familiale : 7 500 visiteurs/trim.', cost: 260, upkeep: 10, level: 0, turns: 1, terrains: FLAT, rideCapacity: 7500, thrill: 0.3, jobs: 6, modes: ['park'] },
+  { id: 'grande_roue', name: 'Grande roue', icon: '🎡', cat: 'attraction', desc: 'Attraction emblématique : 9 000 visiteurs/trim.', cost: 380, upkeep: 12, level: 0, turns: 2, terrains: FLAT, rideCapacity: 9000, thrill: 0.35, jobs: 8, modes: ['park'] },
+  { id: 'maison_hantee', name: 'Maison hantée', icon: '👻', cat: 'attraction', desc: 'Sensations fortes : 5 000 visiteurs/trim.', cost: 420, upkeep: 16, level: 0, turns: 2, terrains: FLAT, rideCapacity: 5000, thrill: 0.55, jobs: 10, modes: ['park'] },
+  { id: 'chute_eau', name: 'Chute d’eau', icon: '🌊', cat: 'attraction', desc: 'Sensations fortes : 9 000 visiteurs/trim.', cost: 650, upkeep: 22, level: 0, turns: 3, terrains: FLAT, rideCapacity: 9000, thrill: 0.7, jobs: 12, modes: ['park'] },
+  { id: 'montagnes_russes', name: 'Montagnes russes', icon: '🎢', cat: 'attraction', desc: 'Attraction phare : 12 000 visiteurs/trim.', cost: 900, upkeep: 30, level: 0, turns: 3, terrains: FLAT, rideCapacity: 12000, thrill: 0.9, jobs: 14, modes: ['park'] },
+
+  { id: 'stand_glaces', name: 'Stand de glaces', icon: '🍦', cat: 'economie', desc: 'Petite restauration : 10 emplois.', cost: 90, upkeep: 4, level: 0, turns: 1, terrains: FLAT, jobs: 10, prod: 3, modes: ['park'] },
+  { id: 'creperie', name: 'Crêperie', icon: '🥞', cat: 'economie', desc: 'Petite restauration : 12 emplois.', cost: 120, upkeep: 5, level: 0, turns: 1, terrains: FLAT, jobs: 12, prod: 3.2, modes: ['park'] },
+  { id: 'boutique_souvenirs', name: 'Boutique souvenirs', icon: '🛍️', cat: 'economie', desc: 'Commerce : 15 emplois.', cost: 160, upkeep: 6, level: 0, turns: 1, terrains: FLAT, jobs: 15, prod: 3.6, modes: ['park'] },
+  { id: 'restaurant_parc', name: 'Restaurant', icon: '🍔', cat: 'economie', desc: 'Restauration : 25 emplois.', cost: 220, upkeep: 9, level: 0, turns: 1, terrains: FLAT, jobs: 25, prod: 4.4, modes: ['park'] },
+
+  { id: 'spectacle', name: 'Chapiteau de spectacle', icon: '🎪', cat: 'culture', desc: 'Animations : 150 points.', cost: 300, upkeep: 15, level: 0, turns: 2, terrains: FLAT, culture: 150, modes: ['park'] },
+  { id: 'toilettes', name: 'Toilettes publiques', icon: '🚻', cat: 'sante', desc: 'Hygiène pour 18 000 visiteurs.', cost: 60, upkeep: 4, level: 0, turns: 1, terrains: FLAT, health: 18000, modes: ['park'] },
+  { id: 'premiers_secours', name: 'Poste de premiers secours', icon: '⛑️', cat: 'sante', desc: 'Secours pour 30 000 visiteurs.', cost: 180, upkeep: 11, level: 0, turns: 1, terrains: FLAT, health: 30000, modes: ['park'] },
+  { id: 'securite_parc', name: 'Poste de sécurité', icon: '🚨', cat: 'securite', desc: 'Sécurité pour 37 000 visiteurs.', cost: 160, upkeep: 10, level: 0, turns: 1, terrains: FLAT, safety: 37000, modes: ['park'] },
+  { id: 'jardin_parc', name: 'Jardin paysager', icon: '🌳', cat: 'environnement', desc: 'Espace vert : absorbe la pollution, +4 culture.', cost: 70, upkeep: 3, level: 0, turns: 1, terrains: LAND, green: 1.5, culture: 4, modes: ['park'] },
+  { id: 'parking_parc', name: 'Parking visiteurs', icon: '🅿️', cat: 'transport', desc: 'Accès pour 60 000 visiteurs.', cost: 200, upkeep: 7, level: 0, turns: 1, terrains: FLAT, transit: 60000, modes: ['park'] },
 ];
 
 export const B: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));

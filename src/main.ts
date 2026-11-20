@@ -69,8 +69,8 @@ function report(r: A.Result) {
 }
 
 function renderTabs() {
-  const tabs = P.TABS.filter((t) => t.id !== 'elections' || !game.sandbox);
-  if (game.sandbox && tab === 'elections') tab = 'city';
+  const tabs = P.TABS.filter((t) => (t.id !== 'elections' || !game.sandbox) && (t.id !== 'politics' || !game.park));
+  if ((game.sandbox && tab === 'elections') || (game.park && tab === 'politics')) tab = 'city';
   $('tabs').innerHTML = tabs.map((t) => `<button data-tab="${t.id}" class="${t.id === tab ? 'on' : ''}">${t.label}</button>`).join('');
 }
 
@@ -79,8 +79,8 @@ function renderPanel() {
   const top = el.scrollTop;
   let html = '';
   switch (tab) {
-    case 'city': html = P.panelCity(game, metrics); break;
-    case 'budget': html = P.panelBudget(game, metrics); break;
+    case 'city': html = game.park ? P.panelParkCity(game, metrics) : P.panelCity(game, metrics); break;
+    case 'budget': html = game.park ? P.panelParkBudget(game, metrics) : P.panelBudget(game, metrics); break;
     case 'politics': html = P.panelPolitics(game, metrics); break;
     case 'elections': html = P.panelElections(game, metrics, P.computePoll(game, metrics)); break;
     case 'plan': html = P.panelPlan(game, metrics, tool); break;
@@ -330,7 +330,7 @@ panel.addEventListener('input', (e) => {
   const v = Number(t.value);
   if (act === 'rate') {
     const key = t.dataset.key;
-    const lbl = key === 'transit' ? `${Math.round(v)} k€` : key === 'toll' ? `${v.toFixed(1)} k€` : `${v} %`;
+    const lbl = key === 'transit' ? `${Math.round(v)} k€` : key === 'toll' ? `${v.toFixed(1)} k€` : key === 'entry' ? `${Math.round(v)} €` : `${v} %`;
     $('lbl-rate-' + key)!.textContent = lbl;
   }
   if (act === 'funding') $('lbl-fund-' + t.dataset.key)!.textContent = `${Math.round(v * 100)} %`;
@@ -343,7 +343,7 @@ panel.addEventListener('change', (e) => {
   if (!act) return;
   let r: A.Result | null = null;
   switch (act) {
-    case 'rate': r = A.setRate(game, t.dataset.key as 'income' | 'corp' | 'property' | 'transit' | 'toll', Number(t.value)); break;
+    case 'rate': r = A.setRate(game, t.dataset.key as 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry', Number(t.value)); break;
     case 'funding': r = A.setFunding(game, t.dataset.key!, Number(t.value)); break;
     case 'prate': r = A.setPolicyRate(game, Number(t.value)); break;
     case 'campaign': r = A.setCampaign(game, Number(t.value)); break;
@@ -360,8 +360,8 @@ panel.addEventListener('change', (e) => {
 });
 
 // ------------------------------------------------------------------ dialogues
-function openNewGame(hasSave: boolean) {
-  dlg.innerHTML = P.newGameDialog(hasSave);
+function openNewGame(hasSave: boolean, park = false) {
+  dlg.innerHTML = P.newGameDialog(hasSave, park);
   if (!dlg.open) dlg.showModal();
 }
 function openMenu() {
@@ -382,12 +382,13 @@ dlg.addEventListener('click', (e) => {
       break;
     case 'start': {
       const name = (document.getElementById('ng-name') as HTMLInputElement).value;
+      const park = (document.getElementById('ng-park') as HTMLInputElement).value === '1';
       const plat = (document.querySelector('input[name=ng-plat]:checked') as HTMLInputElement)?.value;
       const color = (document.getElementById('ng-color') as HTMLInputElement).value;
       const seedRaw = (document.getElementById('ng-seed') as HTMLInputElement).value.trim();
       const seed = seedRaw ? (/^\d+$/.test(seedRaw) ? Number(seedRaw) : hashString(seedRaw)) : undefined;
-      const sandbox = (document.getElementById('ng-sandbox') as HTMLInputElement).checked;
-      game = newGame({ seed, listName: name, platform: plat, color, sandbox });
+      const sandbox = !park && (document.getElementById('ng-sandbox') as HTMLInputElement).checked;
+      game = newGame({ seed, listName: name, platform: plat, color, sandbox, park });
       currentId = newId();
       tab = 'city';
       dlg.close();
@@ -449,6 +450,7 @@ function resumeGame(id: string) {
   view.centerOn(game, game.capital);
 }
 $('home-new').addEventListener('click', () => openNewGame(false));
+$('home-new-park').addEventListener('click', () => openNewGame(false, true));
 $('home-import').addEventListener('click', () => $('importfile').click());
 $('home-list').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-home-act]') as HTMLElement | null;

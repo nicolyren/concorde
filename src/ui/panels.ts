@@ -1,6 +1,6 @@
 import {
   B, BUILDINGS, CAT_LABEL, CAT_ORDER, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY, LEVEL_EXEC, LEVEL_NAME,
-  LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS,
+  LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS, PARK_CAT_ORDER, PARK_CAT_LABEL,
 } from '../core/content';
 import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actions';
 import { REFERENDUMS, campaignBonus, districtShares, listColor, listName } from '../core/elections';
@@ -37,6 +37,17 @@ const bar = (v: number, color = 'var(--accent)') => `<div class="bar"><i style="
 export function renderStats(s: GameState, m: Metrics): string {
   const left = s.nextElection - s.turn;
   const chip = (label: string, value: string, cls = '') => `<div class="chip ${cls}">${label} <b>${value}</b></div>`;
+  if (s.park) {
+    return [
+      chip('📅', dateLabel(s.turn)),
+      chip('🎢', 'Parc'),
+      chip('💰', fmtK(s.treasury), s.treasury < 0 ? 'bad' : ''),
+      chip('Solde/trim.', `${m.netCash >= 0 ? '+' : ''}${fmtK(m.netCash)}`, m.netCash >= 0 ? 'good' : 'bad'),
+      chip('🎟️ Visiteurs', fmtN(s.pop)),
+      chip('😊 Satisfaction', m.wellbeing.toFixed(0), m.wellbeing >= 65 ? 'good' : m.wellbeing < 45 ? 'bad' : 'warn'),
+      chip('⭐ Réputation', s.satisfaction.toFixed(0) + ' %', s.satisfaction >= 50 ? 'good' : 'bad'),
+    ].join('');
+  }
   return [
     chip('📅', dateLabel(s.turn)),
     chip(LEVEL_NAME[s.level] === 'Commune' ? '🏘️' : LEVEL_NAME[s.level] === 'Région' ? '🗺️' : '🇫🇷', LEVEL_NAME[s.level]),
@@ -59,12 +70,15 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
   h += btn('forest', '🌲', 'Reboiser', `${Math.round(20 * s.macro.costIndex)}`, null, 'Plante une forêt sur une plaine ou une colline : absorbe la pollution.');
   h += `<h4>Réseaux</h4>`;
   for (const k of ['road', 'highway', 'rail'] as const) {
+    if (s.park && k === 'highway') continue;
     const lock = k === 'highway' && !highwayAllowed(s) ? 'Niveau région ou référendum « Autoroute urbaine »' : null;
     h += btn(`infra:${k}`, INFRA[k].icon, INFRA[k].name, `${Math.round(INFRA[k].cost * s.macro.costIndex)}+`, lock, `${INFRA[k].name} : coût par tuile (plus cher sur relief et eau).`);
   }
-  for (const cat of CAT_ORDER) {
-    h += `<h4>${CAT_LABEL[cat]}</h4>`;
-    for (const def of BUILDINGS.filter((b) => b.cat === cat)) {
+  const mode = s.park ? 'park' : 'city';
+  const catOrder = s.park ? PARK_CAT_ORDER : CAT_ORDER;
+  for (const cat of catOrder) {
+    h += `<h4>${(s.park ? PARK_CAT_LABEL[cat] : null) ?? CAT_LABEL[cat]}</h4>`;
+    for (const def of BUILDINGS.filter((b) => b.cat === cat && (b.modes ?? ['city']).includes(mode))) {
       const lock = def.level > s.level && !s.sandbox ? `Disponible à l’échelle « ${LEVEL_NAME[def.level]} »` : null;
       const aff = def.cost * s.macro.costIndex;
       h += btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
@@ -118,6 +132,40 @@ export function panelCity(s: GameState, m: Metrics): string {
   h += `<div class="card"><h3>Secteurs <small>(population · cadre de vie)</small></h3><table>`;
   m.districts.forEach((d, k) => {
     h += `<tr><td>${k === 0 ? 'Centre' : 'Secteur ' + d.name}</td><td>${fmtN(d.pop)} hab.</td><td class="${d.delta >= 0 ? 'pos' : 'neg'}">${d.delta >= 0 ? '+' : ''}${d.delta.toFixed(0)}</td></tr>`;
+  });
+  h += `</table></div>`;
+  return h;
+}
+
+// ------------------------------------------------------------------ Onglet Ville (mode Parc)
+const PARK_IDX_LABELS: [keyof Metrics['idx'], string, string][] = [
+  ['edu', '🎢', 'Variété des attractions'], ['health', '🚻', 'Hygiène & secours'], ['safety', '🚨', 'Sécurité'], ['employment', '👔', 'Personnel'],
+  ['housing', '🎪', 'Confort / affluence'], ['env', '🌳', 'Propreté & espaces verts'], ['energy', '⚡', 'Énergie'], ['mobility', '🅿️', 'Accès & stationnement'],
+  ['culture', '🎭', 'Spectacles'],
+];
+
+export function panelParkCity(s: GameState, m: Metrics): string {
+  let h = '';
+  if (s.treasury < 0) h += `<div class="warn-box"><b>Trésorerie négative.</b> Baissez les dépenses ou le prix du billet n’est peut-être pas optimal : la réputation en souffre.</div>`;
+  h += `<div class="card"><div class="row"><div><div class="mute">Satisfaction des visiteurs</div><div class="big" style="color:${col(m.wellbeing)}">${m.wellbeing.toFixed(0)}<small class="mute" style="font-size:14px"> /100</small></div></div>
+    <div style="text-align:right"><div class="mute">Réputation</div><div class="big" style="font-size:26px;color:${col(s.satisfaction)}">${s.satisfaction.toFixed(0)}%</div></div></div></div>`;
+  h += `<div class="card"><h3>Indicateurs</h3>`;
+  for (const [k, ic, label] of PARK_IDX_LABELS) {
+    const v = m.idx[k];
+    h += `<div class="idx"><span>${ic}</span><span>${label}</span>${bar(v, col(v))}<span class="v">${v.toFixed(0)}</span></div>`;
+  }
+  h += `</div>`;
+  h += `<div class="card"><h3>Chiffres clés</h3><table>
+    <tr><td>Visiteurs / capacité d’accueil</td><td>${fmtN(s.pop)} / ${fmtN(m.housingCap)}</td></tr>
+    <tr><td>Personnel pourvu / disponible</td><td>${fmtN(m.filled)} / ${fmtN(m.workforce)}</td></tr>
+    <tr><td>Énergie (offre / demande)</td><td class="${m.energySupply < m.energyDemand ? 'neg' : ''}">${fmtN(m.energySupply)} / ${fmtN(m.energyDemand)}</td></tr>
+    <tr><td>Recettes des concessions</td><td>${fmtK(m.output)}/trim.</td></tr>
+    <tr><td>Attractions desservies par les allées</td><td class="${m.servedShare < 0.8 ? 'neg' : ''}">${pct(m.servedShare, 0)}</td></tr>
+    <tr><td>Inflation · indice des prix</td><td>${s.macro.inflation.toFixed(1)} % · ${s.macro.costIndex.toFixed(2)}</td></tr>
+  </table></div>`;
+  h += `<div class="card"><h3>Secteurs <small>(visiteurs · ambiance)</small></h3><table>`;
+  m.districts.forEach((d, k) => {
+    h += `<tr><td>${k === 0 ? 'Centre' : 'Secteur ' + d.name}</td><td>${fmtN(d.pop)} vis.</td><td class="${d.delta >= 0 ? 'pos' : 'neg'}">${d.delta >= 0 ? '+' : ''}${d.delta.toFixed(0)}</td></tr>`;
   });
   h += `</table></div>`;
   return h;
@@ -184,6 +232,49 @@ export function panelBudget(s: GameState, m: Metrics): string {
       <div class="mute">Un taux bas stimule l’activité mais fait monter l’inflation ; un taux élevé refroidit. Neutre : ~3 %.</div>`;
     h += `<table><tr><td>Inflation</td><td>${s.macro.inflation.toFixed(1)} %</td></tr><tr><td>Conjoncture</td><td>${s.macro.cycle >= 0 ? '+' : ''}${(s.macro.cycle * 100).toFixed(0)}</td></tr></table></div>`;
   }
+  return h;
+}
+
+// ------------------------------------------------------------------ Onglet Budget (mode Parc)
+export function panelParkBudget(s: GameState, m: Metrics): string {
+  const r = m.revenue;
+  const e = m.expenses;
+  const rowv = (label: string, v: number, neg = false) => v === 0 ? '' : `<tr><td>${label}</td><td class="${neg ? 'neg' : ''}">${neg ? '−' : ''}${fmtK(v)}</td></tr>`;
+  let h = `<div class="card"><h3>Comptes du trimestre</h3><table>
+    ${rowv('Billets d’entrée', r.tickets)}${rowv('Ventes des commerces', r.corp)}
+    <tr class="sep"><td>Recettes</td><td class="pos">${fmtK(r.total)}</td></tr>
+    ${rowv('Entretien des équipements', e.upkeep, true)}${rowv('Administration', e.admin, true)}${rowv('Intérêts de la dette', e.interest, true)}
+    <tr class="sep"><td>Solde de fonctionnement</td><td class="${m.operatingBalance >= 0 ? 'pos' : 'neg'}">${fmtK(m.operatingBalance)}</td></tr>
+    ${rowv('Remboursement du capital', e.principal, true)}
+    <tr class="sep"><td>Variation de trésorerie</td><td class="${m.netCash >= 0 ? 'pos' : 'neg'}">${fmtK(m.netCash)}</td></tr></table></div>`;
+
+  h += `<div class="card"><h3>Billetterie</h3>
+    <div class="sl"><label><span>Prix du billet d’entrée</span><b id="lbl-rate-entry">${Math.round(s.rates.entry)} €</b></label><input type="range" min="0" max="50" step="1" value="${s.rates.entry}" data-act="rate" data-key="entry"/></div>
+    <div class="mute">Un prix trop élevé (&gt; 25 €) agace les visiteurs et nuit à la réputation.</div></div>`;
+
+  h += `<div class="card"><h3>Financement des services</h3>`;
+  for (const [k, label] of Object.entries(FUNDING_LABEL)) {
+    if (k === 'education') continue;
+    const v = s.funding[k];
+    h += `<div class="sl"><label><span>${label}</span><b id="lbl-fund-${k}">${Math.round(v * 100)} %</b></label><input type="range" min="0.5" max="1.5" step="0.05" value="${v}" data-act="funding" data-key="${k}"/></div>`;
+  }
+  h += `<div class="mute">100 % = fonctionnement normal. Plus de budget = services plus efficaces (jusqu’à +15 %), moins = dégradation.</div></div>`;
+
+  h += `<div class="card"><h3>Banques & dette</h3>`;
+  if (m.banks === 0) h += `<div class="mute">Construisez une banque (catégorie « Banques ») pour pouvoir emprunter.</div>`;
+  else {
+    h += `<table><tr><td>Banques</td><td>${m.banks}</td></tr><tr><td>Plafond de crédit disponible</td><td>${fmtK(m.creditAvailable)}</td></tr>
+      <tr><td>Taux actuel</td><td>${m.loanRate.toFixed(2)} %</td></tr><tr><td>Stabilité bancaire</td><td class="${s.bankStability < 45 ? 'neg' : ''}">${s.bankStability.toFixed(0)} / 100</td></tr></table>
+      <div class="row" style="margin-top:8px"><select id="loan-amount">${[250, 500, 1000, 2000, 4000, 8000, 16000].map((a) => `<option value="${a}">${fmtK(a)}</option>`).join('')}</select>
+      <select id="loan-term"><option value="8">2 ans</option><option value="16" selected>4 ans</option><option value="32">8 ans</option></select>
+      <button data-act="loan">Emprunter</button></div>`;
+  }
+  if (s.loans.length) {
+    h += `<table style="margin-top:8px"><tr><th>Prêt</th><th>Reste</th><th>Taux</th><th></th></tr>`;
+    for (const l of s.loans) h += `<tr><td>#${l.id}</td><td>${fmtK(l.balance)}</td><td>${l.rate.toFixed(2)} %</td><td><button class="small" data-act="repay" data-id="${l.id}">Rembourser</button></td></tr>`;
+    h += `</table>`;
+  }
+  h += `</div>`;
   return h;
 }
 
@@ -399,17 +490,28 @@ export function panelHelp(): string {
     <li><b>Institutions</b> : lois, budget participatif, référendums, mode de scrutin.</li>
     <li><b>Élections</b> : des listes concurrentes (mais non violentes !) se disputent les électeurs de 7 secteurs. Perdre = cohabitation : plus de lois ni d’impôts à changer, jusqu’au prochain vote.</li>
     <li>Atteignez la taille et le bien-être requis pour passer <b>Commune → Région → Pays</b> : le territoire s’agrandit, autoroutes, hôpitaux, universités puis Banque centrale se débloquent.</li>
-    <li><b>🧪 Mode entraînement libre</b> (à choisir en début de partie) : désactive les élections et la cohabitation, et débloque tous les bâtiments dès le départ (il faut toujours un emplacement compatible et payer le prix normal), pour s’entraîner sans contrainte politique ni de progression.</li></ul></div>
+    <li><b>🧪 Mode entraînement libre</b> (à choisir en début de partie) : désactive les élections et la cohabitation, et débloque tous les bâtiments dès le départ (il faut toujours un emplacement compatible et payer le prix normal), pour s’entraîner sans contrainte politique ni de progression.</li>
+    <li><b>🎢 Parc d’attraction</b> (depuis la page d’accueil) : un mode de jeu à part entière où vous construisez des attractions, des commerces et des services au lieu de gérer une commune. Les visiteurs remplacent les habitants, la réputation remplace la popularité, et le prix du billet d’entrée remplace les impôts. Pas d’élections, pas de progression de niveau.</li></ul></div>
   <div class="card"><h3>Commandes</h3><ul style="padding-left:18px;margin:0"><li>Molette : zoom · glisser (outil Inspecter) ou clic droit/milieu : déplacer</li><li>Espace : trimestre suivant · Échap : outil Inspecter</li><li>Menu ☰ : nouvelle partie, export/import de sauvegarde</li></ul></div>`;
 }
 
-export function newGameDialog(hasSave: boolean): string {
+export function newGameDialog(hasSave: boolean, park = false): string {
+  if (park) {
+    return `<h2>🎢 Nouveau parc d’attraction</h2>
+    <div class="field"><label>Nom de votre parc</label><input type="text" id="ng-name" value="Mon parc" maxlength="40" style="width:100%"/></div>
+    <div class="field"><label>Couleur</label><input type="color" id="ng-color" value="#e9822a"/></div>
+    <div class="field"><label>Graine du monde (laisser vide = aléatoire)</label><input type="text" id="ng-seed" placeholder="ex. 12345" style="width:100%"/></div>
+    <div class="mute">Construisez des attractions, fixez le prix du billet d’entrée et faites venir les visiteurs. Pas d’élections ni de progression de niveau : un bac à sable dédié à la gestion d’un parc.</div>
+    <input type="hidden" id="ng-park" value="1"/>
+    <div class="actions">${hasSave ? '<button data-dlg="cancel">Reprendre la partie</button>' : ''}<button class="primary" data-dlg="start">Commencer</button></div>`;
+  }
   return `<h2>🏛️ Nouvelle partie</h2>
   <div class="field"><label>Nom de votre liste</label><input type="text" id="ng-name" value="Concorde citoyenne" maxlength="40" style="width:100%"/></div>
   <div class="field"><label>Votre programme</label>${PLATFORMS.map((p, i) => `<label class="opt"><input type="radio" name="ng-plat" value="${p.id}" ${i === 0 ? 'checked' : ''}/> <b>${p.name}</b> — <span class="mute">${p.desc}</span></label>`).join('')}</div>
   <div class="field"><label>Couleur</label><input type="color" id="ng-color" value="#2b7de9"/></div>
   <div class="field"><label>Graine du monde (laisser vide = aléatoire)</label><input type="text" id="ng-seed" placeholder="ex. 12345" style="width:100%"/></div>
   <div class="field"><label class="opt"><input type="checkbox" id="ng-sandbox"/> <b>🧪 Mode entraînement libre</b> — <span class="mute">pas d’élections ni de cohabitation, et tous les bâtiments sont débloqués dès le départ (prix normal, terrain compatible requis).</span></label></div>
+  <input type="hidden" id="ng-park" value="0"/>
   <div class="actions">${hasSave ? '<button data-dlg="cancel">Reprendre la partie</button>' : ''}<button class="primary" data-dlg="start">Commencer</button></div>`;
 }
 
@@ -418,8 +520,8 @@ export function homeList(games: GameMeta[]): string {
   return games.map((g) => `<div class="save-item" data-id="${g.id}">
     <div class="sw" style="background:${g.color}"></div>
     <div class="info">
-      <div class="name">${esc(g.name)} ${g.sandbox ? '<span class="pill">🧪 entraînement</span>' : ''}</div>
-      <div class="meta">${dateLabel(g.turn)} · ${LEVEL_NAME[g.level]} · 👥 ${fmtN(g.pop)} · 😊 ${g.wellbeing} · 💰 ${fmtK(g.treasury)}</div>
+      <div class="name">${esc(g.name)} ${g.park ? '<span class="pill">🎢 parc</span>' : g.sandbox ? '<span class="pill">🧪 entraînement</span>' : ''}</div>
+      <div class="meta">${dateLabel(g.turn)} · ${g.park ? 'Parc d’attraction' : LEVEL_NAME[g.level]} · ${g.park ? '🎟️' : '👥'} ${fmtN(g.pop)} · 😊 ${g.wellbeing} · 💰 ${fmtK(g.treasury)}</div>
     </div>
     <div class="actions" style="margin:0"><button class="small danger" data-home-act="delete" data-id="${g.id}" title="Supprimer">🗑️</button>
       <button class="primary small" data-home-act="resume" data-id="${g.id}">▶️ Continuer</button></div>

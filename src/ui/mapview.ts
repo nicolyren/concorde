@@ -41,6 +41,10 @@ const BUILDING_COUNT: Record<string, number> = {
   parc: 3, epuration: 1,
   banque_locale: 1, banque_coop: 1, banque_centrale: 1,
   depot: 1, gare: 1, aeroport: 1,
+  // Mode Parc d'attraction
+  maneges_enfants: 2, autos_tamponneuses: 2, grande_roue: 1, maison_hantee: 1, chute_eau: 1, montagnes_russes: 1,
+  stand_glaces: 2, creperie: 2, boutique_souvenirs: 2, restaurant_parc: 1,
+  spectacle: 1, toilettes: 1, premiers_secours: 1, securite_parc: 1, jardin_parc: 3, parking_parc: 1,
 };
 
 export class MapView {
