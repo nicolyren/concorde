@@ -261,13 +261,12 @@ export function panelPolitics(s: GameState, m: Metrics): string {
   if (s.fundraisers.length >= 3) h += `<div class="mute" style="margin-top:8px">Trois cagnottes au maximum en même temps.</div>`;
   else if (!frOptions.length) h += `<div class="mute" style="margin-top:8px">Aucun bâtiment disponible à financer pour le moment.</div>`;
   else {
-    h += `<div class="row" style="margin-top:10px;gap:6px">
-      <select id="fr-building" style="flex:1">${CAT_ORDER.map((cat) => {
+    h += `<div class="field"><label>Bâtiment à financer</label><select id="fr-building" style="width:100%">${CAT_ORDER.map((cat) => {
         const opts = frOptions.filter((b) => b.cat === cat);
         return opts.length ? `<optgroup label="${CAT_LABEL[cat]}">${opts.map((b) => `<option value="${b.id}">${b.icon} ${b.name} — ${Math.round(b.cost * s.macro.costIndex)} k€</option>`).join('')}</optgroup>` : '';
-      }).join('')}</select>
-      <select id="fr-district">${DISTRICT_NAMES.map((n, i) => `<option value="${i}">${n === 'Centre' ? 'Centre' : 'Secteur ' + n}</option>`).join('')}</select>
-      <button class="small" data-act="start-fundraiser" ${s.cohabitation ? 'disabled' : ''}>Lancer</button></div>`;
+      }).join('')}</select></div>
+    <div class="field"><label>Secteur</label><select id="fr-district" style="width:100%">${DISTRICT_NAMES.map((n, i) => `<option value="${i}">${n === 'Centre' ? 'Centre' : 'Secteur ' + n}</option>`).join('')}</select></div>
+    <div class="actions"><button class="primary" data-act="start-fundraiser" ${s.cohabitation ? 'disabled' : ''}>🚀 Commencer la cagnotte</button></div>`;
   }
   h += `</div>`;
 
