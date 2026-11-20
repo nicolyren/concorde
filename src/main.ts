@@ -308,6 +308,13 @@ panel.addEventListener('click', (e) => {
     }
     case 'fund': r = A.fundProposal(game, Number(id)); break;
     case 'dismiss': r = A.dismissProposals(game); break;
+    case 'start-fundraiser': {
+      const building = (document.getElementById('fr-building') as HTMLSelectElement).value;
+      const district = Number((document.getElementById('fr-district') as HTMLSelectElement).value);
+      r = A.startFundraiser(game, building, district);
+      break;
+    }
+    case 'cancel-fundraiser': r = A.cancelFundraiser(game, Number(id)); break;
   }
   if (r) {
     report(r);

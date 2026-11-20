@@ -443,6 +443,42 @@ export function endTurn(s: GameState): void {
     pushLog(s, 'info', 'Le budget participatif a reçu de nouvelles propositions des habitants.');
   }
 
+  // 7b. Cagnottes citoyennes
+  if (s.fundraisers.length) {
+    const pool = s.pop * 0.08 * (s.satisfaction / 100) * s.macro.costIndex;
+    const share = pool / s.fundraisers.length;
+    for (const fr of [...s.fundraisers]) {
+      fr.raised += share;
+      if (fr.raised < fr.goal) continue;
+      const def = B[fr.building];
+      let best = -1;
+      let bestScore = -1;
+      for (let i = 0; i < s.tiles.length; i++) {
+        const t = s.tiles[i];
+        if (t.district !== fr.district || !inTerritory(s, i)) continue;
+        if (t.building || t.infra !== 'none' || !def.terrains.includes(t.terrain)) continue;
+        const near = neighborsOf(i, s.W, s.H).some((j) => s.tiles[j].infra === 'road' || s.tiles[j].infra === 'highway' || s.tiles[j].building);
+        const sc = near ? 2 : 1;
+        if (sc > bestScore) {
+          best = i;
+          bestScore = sc;
+        }
+      }
+      s.fundraisers = s.fundraisers.filter((x) => x.id !== fr.id);
+      if (best < 0) {
+        pushLog(s, 'bad', `Cagnotte citoyenne aboutie pour ${def.name}, mais plus aucun emplacement libre dans le secteur ${DISTRICT_NAMES[fr.district]} : les dons sont reversés aux habitants.`);
+        s.satisfaction = clamp(s.satisfaction + 1, 0, 100);
+        continue;
+      }
+      const t = s.tiles[best];
+      t.building = fr.building;
+      t.build = def.turns;
+      if (t.terrain === 'forest' && fr.building !== 'parc') t.terrain = 'plain';
+      s.satisfaction = clamp(s.satisfaction + 3, 0, 100);
+      pushLog(s, 'good', `Cagnotte citoyenne aboutie : les habitants du secteur ${DISTRICT_NAMES[fr.district]} financent ${def.icon} ${def.name} !`);
+    }
+  }
+
   // 8. Avancement
   s.turn++;
   for (const k of Object.keys(s.unlocks)) if (s.unlocks[k] <= s.turn) delete s.unlocks[k];

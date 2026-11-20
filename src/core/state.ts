@@ -77,6 +77,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     councilSeats: {},
     proposals: [],
     nextProposalTurn: 4,
+    fundraisers: [],
     lastReferendum: -10,
     referendums: [],
     unlocks: {},
@@ -145,6 +146,7 @@ export function deserialize(raw: string): GameState | null {
     if (!s || s.version !== SAVE_VERSION || !Array.isArray(s.tiles)) return null;
     if (s.rates.transit === undefined) s.rates.transit = 18;
     if (s.rates.toll === undefined) s.rates.toll = 1.5;
+    if (!s.fundraisers) s.fundraisers = [];
     return s;
   } catch {
     return null;

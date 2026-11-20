@@ -1,4 +1,4 @@
-import { B, INFRA, P, POLICIES, type Cat } from './content';
+import { B, DISTRICT_NAMES, INFRA, P, POLICIES, type Cat } from './content';
 import { neighborsOf } from './hex';
 import { REFERENDUMS, referendumYes, runReferendum } from './elections';
 import { computeMetrics, endTurn } from './sim';
@@ -297,6 +297,35 @@ export function fundProposal(s: GameState, proposalId: number): Result {
 
 export function dismissProposals(s: GameState): Result {
   s.proposals = [];
+  return ok();
+}
+
+const MAX_FUNDRAISERS = 3;
+
+/** Cagnotte citoyenne : les habitants du secteur cotisent au fil des trimestres pour financer un bâtiment, sans toucher à la trésorerie. */
+export function startFundraiser(s: GameState, building: string, district: number): Result {
+  const f = frozen(s);
+  if (f) return f;
+  const def = B[building];
+  if (!def) return ko('Bâtiment inconnu.');
+  if (building === 'mairie') return ko('La mairie ne peut pas être financée par une cagnotte.');
+  if (def.level > s.level && !s.sandbox) return ko(`Débloqué à l’échelle ${['communale', 'régionale', 'nationale'][def.level]}.`);
+  if (def.unique && s.tiles.some((t) => t.building === building)) return ko('Un seul exemplaire est possible.');
+  if (district < 0 || district > 6) return ko('Secteur invalide.');
+  if (s.fundraisers.length >= MAX_FUNDRAISERS) return ko(`${MAX_FUNDRAISERS} cagnottes au maximum en même temps.`);
+  const goal = Math.round(def.cost * s.macro.costIndex);
+  s.fundraisers.push({ id: s.nextId++, building, district, goal, raised: 0 });
+  pushLog(s, 'info', `Cagnotte citoyenne lancée pour ${def.icon} ${def.name} (secteur ${DISTRICT_NAMES[district]}, objectif ${goal} k€).`);
+  return ok('Cagnotte lancée !');
+}
+
+export function cancelFundraiser(s: GameState, id: number): Result {
+  const f = frozen(s);
+  if (f) return f;
+  const fr = s.fundraisers.find((x) => x.id === id);
+  if (!fr) return ko('Cagnotte introuvable.');
+  s.fundraisers = s.fundraisers.filter((x) => x.id !== id);
+  pushLog(s, 'info', `Cagnotte annulée : ${B[fr.building].name}.`);
   return ok();
 }
 

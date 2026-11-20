@@ -39,6 +39,15 @@ export interface Proposal {
   title: string;
 }
 
+/** Cagnotte citoyenne : collecte progressive des habitants d'un secteur pour financer un bâtiment. */
+export interface Fundraiser {
+  id: number;
+  district: number;
+  building: string;
+  goal: number;
+  raised: number;
+}
+
 export interface LogEntry {
   turn: number;
   kind: 'good' | 'bad' | 'info' | 'vote';
@@ -132,6 +141,7 @@ export interface GameState {
   councilSeats: Record<string, number>;
   proposals: Proposal[];
   nextProposalTurn: number;
+  fundraisers: Fundraiser[];
   lastReferendum: number;
   referendums: RefResult[];
   unlocks: Record<string, number>;

@@ -1,6 +1,6 @@
 import {
-  B, BUILDINGS, CAT_LABEL, CAT_ORDER, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY, LEVEL_EXEC, LEVEL_NAME, LEVEL_POP_GOAL,
-  LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS,
+  B, BUILDINGS, CAT_LABEL, CAT_ORDER, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY, LEVEL_EXEC, LEVEL_NAME,
+  LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS,
 } from '../core/content';
 import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actions';
 import { REFERENDUMS, campaignBonus, districtShares, listColor, listName } from '../core/elections';
@@ -245,6 +245,31 @@ export function panelPolitics(s: GameState, m: Metrics): string {
     if (s.proposals.length) h += `<div class="actions"><button class="small" data-act="dismiss">Ignorer</button></div>`;
     h += `</div>`;
   }
+
+  // Cagnottes citoyennes
+  h += `<div class="card"><h3>💰 Cagnottes citoyennes</h3>
+    <div class="mute">Les habitants d’un secteur cotisent chaque trimestre pour financer un bâtiment, sans toucher à la trésorerie de la commune.</div>`;
+  for (const fr of s.fundraisers) {
+    const def = B[fr.building];
+    const pct = Math.min(100, (fr.raised / fr.goal) * 100);
+    h += `<div class="row" style="align-items:flex-start;margin-top:8px"><div style="flex:1">
+      <div>${def.icon} <b>${def.name}</b> — ${DISTRICT_NAMES[fr.district] === 'Centre' ? 'Centre' : 'Secteur ' + DISTRICT_NAMES[fr.district]}</div>
+      ${bar(pct)}<div class="mute" style="font-size:12px">${fmtK(fr.raised)} / ${fmtK(fr.goal)}</div></div>
+      <button class="small danger" data-act="cancel-fundraiser" data-id="${fr.id}" ${s.cohabitation ? 'disabled' : ''}>Annuler</button></div>`;
+  }
+  const frOptions = BUILDINGS.filter((b) => b.id !== 'mairie' && (b.level <= s.level || s.sandbox) && !(b.unique && s.tiles.some((t) => t.building === b.id)));
+  if (s.fundraisers.length >= 3) h += `<div class="mute" style="margin-top:8px">Trois cagnottes au maximum en même temps.</div>`;
+  else if (!frOptions.length) h += `<div class="mute" style="margin-top:8px">Aucun bâtiment disponible à financer pour le moment.</div>`;
+  else {
+    h += `<div class="row" style="margin-top:10px;gap:6px">
+      <select id="fr-building" style="flex:1">${CAT_ORDER.map((cat) => {
+        const opts = frOptions.filter((b) => b.cat === cat);
+        return opts.length ? `<optgroup label="${CAT_LABEL[cat]}">${opts.map((b) => `<option value="${b.id}">${b.icon} ${b.name} — ${Math.round(b.cost * s.macro.costIndex)} k€</option>`).join('')}</optgroup>` : '';
+      }).join('')}</select>
+      <select id="fr-district">${DISTRICT_NAMES.map((n, i) => `<option value="${i}">${n === 'Centre' ? 'Centre' : 'Secteur ' + n}</option>`).join('')}</select>
+      <button class="small" data-act="start-fundraiser" ${s.cohabitation ? 'disabled' : ''}>Lancer</button></div>`;
+  }
+  h += `</div>`;
 
   // Référendums
   h += `<div class="card"><h3>Référendums <small>(1 tous les 2 trimestres)</small></h3>`;
