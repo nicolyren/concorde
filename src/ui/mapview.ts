@@ -17,6 +17,32 @@ const TERRAIN_FILL: Record<Terrain, string> = {
 const DISTRICT_FILL = ['#ffffff', '#e57373', '#ffb74d', '#fff176', '#81c784', '#4fc3f7', '#ba68c8'];
 const SIZE = 22;
 
+/**
+ * Rendu des bâtiments : au lieu d'une pastille unique avec une icône, on dessine 1 à 3
+ * exemplaires de l'icône du bâtiment, répartis sur la case — plus parlant pour les
+ * constructions qui représentent plusieurs petites unités (maisons, champs, commerces…).
+ * Les grands équipements singuliers (hôpital, université, centrale…) restent à 1 exemplaire,
+ * mais sans la pastille, pour un rendu plus net.
+ */
+const CLUSTER_PTS: [number, number][][] = [
+  [[0, 0]],
+  [[-0.24, -0.12], [0.24, 0.14]],
+  [[-0.3, -0.18], [0.3, -0.06], [-0.02, 0.32]],
+];
+const CLUSTER_SIZE = [0.95, 0.7, 0.6];
+const BUILDING_COUNT: Record<string, number> = {
+  pavillons: 3, immeubles: 2, ecoquartier: 3, tours: 2,
+  ferme: 3, bio: 3, atelier: 2, commerces: 3, usine: 1, bureaux: 1, innovation: 1,
+  solaire: 3, eolien: 3, gaz: 1, geothermie: 1, nucleaire: 1,
+  ecole: 1, college: 1, univ: 1,
+  clinique: 1, hopital: 1,
+  commissariat: 1, pompiers: 1,
+  biblio: 1, stade: 1, theatre: 1,
+  parc: 3, epuration: 1,
+  banque_locale: 1, banque_coop: 1, banque_centrale: 1,
+  depot: 1, gare: 1, aeroport: 1,
+};
+
 export class MapView {
   ctx: CanvasRenderingContext2D;
   ox = 0;
@@ -216,18 +242,28 @@ export class MapView {
       const sp = screen(i);
       if (sp.x < -margin || sp.y < -margin || sp.x > this.w + margin || sp.y > this.h + margin) continue;
       const def = B[t.building];
-      this.hexPath(sp.x, sp.y, r * 0.78);
-      ctx.fillStyle = t.build > 0 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.72)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.35)';
-      ctx.stroke();
-      ctx.font = `${r * 0.95}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.globalAlpha = t.build > 0 ? 0.55 : 1;
-      ctx.fillStyle = '#000';
-      ctx.fillText(def.icon, sp.x, sp.y + r * 0.04);
-      ctx.globalAlpha = 1;
+      if (t.build === 0 && t.building !== 'mairie') {
+        const count = BUILDING_COUNT[t.building] ?? 1;
+        const pts = CLUSTER_PTS[count - 1];
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#000';
+        ctx.font = `${r * CLUSTER_SIZE[count - 1]}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
+        for (const [dx, dy] of pts) ctx.fillText(def.icon, sp.x + dx * r * 2, sp.y + dy * r * 2);
+      } else {
+        this.hexPath(sp.x, sp.y, r * 0.78);
+        ctx.fillStyle = t.build > 0 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.72)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.stroke();
+        ctx.font = `${r * 0.95}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = t.build > 0 ? 0.55 : 1;
+        ctx.fillStyle = '#000';
+        ctx.fillText(def.icon, sp.x, sp.y + r * 0.04);
+        ctx.globalAlpha = 1;
+      }
       if (t.build > 0) {
         ctx.font = `bold ${r * 0.55}px system-ui`;
         ctx.fillStyle = '#c0392b';
