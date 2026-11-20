@@ -163,7 +163,7 @@ export const POLICIES: PolicyDef[] = [
   { id: 'sante_proximite', name: 'Santé de proximité', icon: '💊', desc: '+8 santé.', level: 1, upkeep: 90, fx: { health: 8 }, likes: ['social', 'patrimoine'], dislikes: [] },
   { id: 'numerique_education', name: 'Numérique éducatif', icon: '💻', desc: '+8 éducation, +5 % de travailleurs qualifiés.', level: 1, upkeep: 100, fx: { edu: 8, skilled: 0.05 }, likes: ['liberal'], dislikes: [] },
   { id: 'renovation_thermique', name: 'Rénovation thermique', icon: '🧱', desc: '−15 % de demande d’énergie, +4 environnement.', level: 1, upkeep: 110, fx: { energyDemand: -0.15, env: 4 }, likes: ['verts', 'social'], dislikes: [] },
-  { id: 'autoroutes_peage', name: 'Autoroutes à péage', icon: '🛂', desc: 'Rapporte 1,5 par tuile d’autoroute, −3 satisfaction.', level: 1, upkeep: 10, fx: { tollsPerTile: 1.5, satisfaction: -3 }, likes: ['liberal'], dislikes: ['verts'] },
+  { id: 'autoroutes_peage', name: 'Autoroutes à péage', icon: '🛂', desc: 'Autorise la perception d’un péage par tuile d’autoroute (taux réglable dans l’onglet Budget), −3 satisfaction.', level: 1, upkeep: 10, fx: { tollsPerTile: 1, satisfaction: -3 }, likes: ['liberal'], dislikes: ['verts'] },
   { id: 'revenu_transition', name: 'Revenu de transition', icon: '🤲', desc: '+6 satisfaction, +10 emploi (pondéré).', level: 2, upkeep: 300, fx: { satisfaction: 6, employment: 10 }, likes: ['social', 'verts'], dislikes: ['liberal'] },
   { id: 'supervision_bancaire', name: 'Supervision bancaire renforcée', icon: '🔍', desc: '+25 stabilité du système bancaire.', level: 2, upkeep: 40, fx: { bankStab: 25 }, likes: ['social', 'verts'], dislikes: ['liberal'] },
 ];

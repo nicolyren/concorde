@@ -58,7 +58,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     pop: 300,
     satisfaction: 60,
     wellbeing: 60,
-    rates: { income: 8, corp: 8, property: 8 },
+    rates: { income: 8, corp: 8, property: 8, transit: 18, toll: 1.5 },
     funding: { education: 1, health: 1, safety: 1, culture: 1, environment: 1, transport: 1 },
     policies: [],
     policyRate: 3,
@@ -143,6 +143,8 @@ export function deserialize(raw: string): GameState | null {
   try {
     const s = JSON.parse(raw) as GameState;
     if (!s || s.version !== SAVE_VERSION || !Array.isArray(s.tiles)) return null;
+    if (s.rates.transit === undefined) s.rates.transit = 18;
+    if (s.rates.toll === undefined) s.rates.toll = 1.5;
     return s;
   } catch {
     return null;

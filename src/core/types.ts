@@ -112,7 +112,7 @@ export interface GameState {
   pop: number;
   satisfaction: number;
   wellbeing: number;
-  rates: { income: number; corp: number; property: number };
+  rates: { income: number; corp: number; property: number; transit: number; toll: number };
   funding: Record<string, number>;
   policies: string[];
   policyRate: number;

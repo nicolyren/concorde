@@ -142,6 +142,17 @@ export function panelBudget(s: GameState, m: Metrics): string {
   h += `<div class="card"><h3>Fiscalité</h3>${rateSl('income', 'Impôt sur le revenu', s.rates.income)}${rateSl('corp', 'Impôt sur les entreprises', s.rates.corp)}${rateSl('property', 'Taxe foncière', s.rates.property)}
     <div class="mute">Au-delà de ~14 %, la popularité baisse ; un impôt entreprises > 12 % freine la production.</div></div>`;
 
+  h += `<div class="card"><h3>Tarifs des transports</h3>
+    <div class="sl"><label><span>Prix du billet de train</span><b id="lbl-rate-transit">${Math.round(s.rates.transit)} k€</b></label><input type="range" min="0" max="40" step="1" value="${s.rates.transit}" data-act="rate" data-key="transit" ${dis}/></div>
+    <div class="mute">Par gare connectée, modulé par la population desservie ; n’a d’effet qu’avec un réseau ferré relié.</div>`;
+  if (s.policies.includes('autoroutes_peage')) {
+    h += `<div class="sl" style="margin-top:10px"><label><span>Péage autoroutier</span><b id="lbl-rate-toll">${s.rates.toll.toFixed(1)} k€</b></label><input type="range" min="0" max="5" step="0.1" value="${s.rates.toll}" data-act="rate" data-key="toll" ${dis}/></div>
+      <div class="mute">Par tuile d’autoroute et par trimestre.</div>`;
+  } else {
+    h += `<div class="mute" style="margin-top:10px">Adoptez la mesure « Autoroutes à péage » (onglet Institutions) pour fixer un tarif de péage.</div>`;
+  }
+  h += `</div>`;
+
   h += `<div class="card"><h3>Financement des services</h3>`;
   for (const [k, label] of Object.entries(FUNDING_LABEL)) {
     const v = s.funding[k];
