@@ -84,8 +84,8 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
       const aff = def.cost * s.macro.costIndex;
       const mainBtn = btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
       if (s.customBuildings.some((c) => c.id === def.id)) {
-        h += `<div style="display:flex;gap:4px;align-items:stretch"><div style="flex:1;min-width:0">${mainBtn}</div>
-          <button class="tool" style="flex:0 0 auto;padding:0 8px" data-open="edit-custom" data-id="${def.id}" title="Modifier ce bâtiment personnalisé">✏️</button></div>`;
+        h += `<div style="display:flex;gap:4px;align-items:stretch;margin:2px 0"><div style="flex:1;min-width:0">${mainBtn}</div>
+          <button style="flex:0 0 32px;width:32px;padding:0;border-radius:7px" data-open="edit-custom" data-id="${def.id}" title="Modifier ce bâtiment personnalisé">✏️</button></div>`;
       } else {
         h += mainBtn;
       }
