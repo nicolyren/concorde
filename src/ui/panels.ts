@@ -1,7 +1,7 @@
 import {
   B, BUILDINGS, CAT_LABEL, CAT_ORDER, CUSTOM_EFFECT_LABEL, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY,
   LEVEL_EXEC, LEVEL_NAME, LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS, PARK_CAT_ORDER, PARK_CAT_LABEL,
-  type CustomEffect,
+  type BuildingDef, type CustomEffect,
 } from '../core/content';
 import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actions';
 import { REFERENDUMS, campaignBonus, districtShares, listColor, listName } from '../core/elections';
@@ -82,7 +82,13 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
     for (const def of BUILDINGS.filter((b) => b.cat === cat && (b.modes ?? ['city']).includes(mode))) {
       const lock = def.level > s.level && !s.sandbox ? `Disponible à l’échelle « ${LEVEL_NAME[def.level]} »` : null;
       const aff = def.cost * s.macro.costIndex;
-      h += btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
+      const mainBtn = btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
+      if (s.customBuildings.some((c) => c.id === def.id)) {
+        h += `<div style="display:flex;gap:4px;align-items:stretch"><div style="flex:1;min-width:0">${mainBtn}</div>
+          <button class="tool" style="flex:0 0 auto;padding:0 8px" data-open="edit-custom" data-id="${def.id}" title="Modifier ce bâtiment personnalisé">✏️</button></div>`;
+      } else {
+        h += mainBtn;
+      }
     }
   }
   h += `<h4>Personnalisation</h4>
@@ -537,20 +543,22 @@ export function confirmDeleteDialog(g: GameMeta): string {
   <div class="actions"><button data-dlg="close">Annuler</button><button class="danger" data-dlg="confirm-delete" data-id="${g.id}">Supprimer</button></div>`;
 }
 
-export function customBuildingDialog(s: GameState): string {
+export function customBuildingDialog(s: GameState, edit?: BuildingDef): string {
   const mode = s.park ? 'park' : 'city';
   const effects = Object.keys(CUSTOM_EFFECT_LABEL) as CustomEffect[];
   const unitOf = (eff: CustomEffect) => (s.park ? CUSTOM_EFFECT_LABEL[eff].unitPark : CUSTOM_EFFECT_LABEL[eff].unitCity);
-  return `<h2>➕ Créer un bâtiment personnalisé</h2>
-  <div class="field"><label>Nom</label><input type="text" id="cb-name" value="Mon bâtiment" maxlength="40" style="width:100%"/></div>
-  <div class="field"><label>Icône (emoji)</label><input type="text" id="cb-icon" value="🏗️" maxlength="4" style="width:80px"/></div>
+  const curEffect = edit?.customEffect ?? 'capacity';
+  return `<h2>${edit ? '✏️ Modifier' : '➕ Créer'} un bâtiment personnalisé</h2>
+  <div class="field"><label>Nom</label><input type="text" id="cb-name" value="${esc(edit?.name ?? 'Mon bâtiment')}" maxlength="40" style="width:100%"/></div>
+  <div class="field"><label>Icône (emoji)</label><input type="text" id="cb-icon" value="${esc(edit?.icon ?? '🏗️')}" maxlength="4" style="width:80px"/></div>
   <div class="field"><label>Effet</label><select id="cb-effect" style="width:100%">
-    ${effects.map((e) => `<option value="${e}">${CUSTOM_EFFECT_LABEL[e][mode]}</option>`).join('')}
+    ${effects.map((e) => `<option value="${e}" ${e === curEffect ? 'selected' : ''}>${CUSTOM_EFFECT_LABEL[e][mode]}</option>`).join('')}
   </select></div>
-  <div class="field"><label>Intensité de l’effet — <span id="cb-unit">${unitOf('capacity')}</span></label><input type="number" id="cb-magnitude" value="300" min="1" max="100000" style="width:100%"/></div>
-  <div class="field"><label>Coût de construction (k€)</label><input type="number" id="cb-cost" value="250" min="10" max="20000" style="width:100%"/></div>
-  <div class="mute">Entretien et durée de chantier sont calculés automatiquement à partir du coût.</div>
-  <div class="actions"><button data-dlg="close">Annuler</button><button class="primary" data-dlg="create-custom">➕ Créer le bâtiment</button></div>`;
+  <div class="field"><label>Intensité de l’effet — <span id="cb-unit">${unitOf(curEffect)}</span></label><input type="number" id="cb-magnitude" value="${edit?.customMagnitude ?? 300}" min="1" max="100000" style="width:100%"/></div>
+  <div class="field"><label>Coût de construction (k€, 1 000 minimum = 1 M€)</label><input type="number" id="cb-cost" value="${edit?.cost ?? 1500}" min="1000" max="50000" style="width:100%"/></div>
+  <div class="mute">Entretien calculé automatiquement à partir du coût · chantier de 3 trimestres.</div>
+  <input type="hidden" id="cb-edit-id" value="${edit?.id ?? ''}"/>
+  <div class="actions"><button data-dlg="close">Annuler</button><button class="primary" data-dlg="create-custom">${edit ? '✏️ Enregistrer les modifications' : '➕ Créer le bâtiment'}</button></div>`;
 }
 
 export function menuDialog(): string {

@@ -270,7 +270,12 @@ $('toolbar').addEventListener('click', (e) => {
   const b = el.closest('[data-tool]') as HTMLElement | null;
   if (b) return setTool(b.dataset.tool!);
   const o = el.closest('[data-open]') as HTMLElement | null;
-  if (o && o.dataset.open === 'custom-building') openCustomBuildingDialog();
+  if (!o) return;
+  if (o.dataset.open === 'custom-building') openCustomBuildingDialog();
+  else if (o.dataset.open === 'edit-custom') {
+    const def = game.customBuildings.find((b) => b.id === o.dataset.id);
+    if (def) openCustomBuildingDialog(def);
+  }
 });
 $('tabs').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-tab]') as HTMLElement | null;
@@ -371,8 +376,8 @@ function openMenu() {
   dlg.innerHTML = P.menuDialog();
   if (!dlg.open) dlg.showModal();
 }
-function openCustomBuildingDialog() {
-  dlg.innerHTML = P.customBuildingDialog(game);
+function openCustomBuildingDialog(edit?: GameState['customBuildings'][number]) {
+  dlg.innerHTML = P.customBuildingDialog(game, edit);
   if (!dlg.open) dlg.showModal();
 }
 dlg.addEventListener('change', (e) => {
@@ -400,7 +405,10 @@ dlg.addEventListener('click', (e) => {
       const effect = (document.getElementById('cb-effect') as HTMLSelectElement).value as CustomEffect;
       const magnitude = Number((document.getElementById('cb-magnitude') as HTMLInputElement).value);
       const cost = Number((document.getElementById('cb-cost') as HTMLInputElement).value);
-      const r = A.createCustomBuilding(game, { name, icon, effect, magnitude, cost });
+      const editId = (document.getElementById('cb-edit-id') as HTMLInputElement).value;
+      const r = editId
+        ? A.updateCustomBuilding(game, editId, { name, icon, effect, magnitude, cost })
+        : A.createCustomBuilding(game, { name, icon, effect, magnitude, cost });
       report(r);
       if (r.ok) {
         dlg.close();

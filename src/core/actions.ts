@@ -306,6 +306,9 @@ export function dismissProposals(s: GameState): Result {
 }
 
 const MAX_CUSTOM_BUILDINGS = 12;
+const MIN_CUSTOM_COST = 1000; // k€ (1 M€)
+const MAX_CUSTOM_COST = 50000;
+const CUSTOM_BUILD_TURNS = 3;
 
 export interface CustomBuildingInput {
   name: string;
@@ -315,25 +318,10 @@ export interface CustomBuildingInput {
   cost: number;
 }
 
-/** Crée un bâtiment personnalisé et l'ajoute au catalogue de la barre d'outils (pour cette partie). */
-export function createCustomBuilding(s: GameState, input: CustomBuildingInput): Result {
-  const f = frozen(s);
-  if (f) return f;
-  if (s.customBuildings.length >= MAX_CUSTOM_BUILDINGS) return ko(`${MAX_CUSTOM_BUILDINGS} bâtiments personnalisés au maximum.`);
-  const name = input.name.trim().slice(0, 40) || 'Bâtiment personnalisé';
-  const icon = input.icon.trim().slice(0, 4) || '🏗️';
-  const cost = Math.max(10, Math.min(20000, Math.round(input.cost) || 0));
-  const mag = Math.max(1, Math.round(input.magnitude) || 0);
-  const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
-  const def: BuildingDef = {
-    id, name, icon, cat: CUSTOM_EFFECT_CAT[input.effect][s.park ? 'park' : 'city'],
-    desc: `Bâtiment personnalisé.`, cost, upkeep: Math.max(1, Math.round(cost / 20)),
-    level: 0, turns: Math.max(1, Math.round(cost / 300)), terrains: CUSTOM_TERRAINS,
-    modes: [s.park ? 'park' : 'city'],
-  };
-  switch (input.effect) {
+function applyCustomEffect(def: BuildingDef, effect: CustomEffect, mag: number, park: boolean) {
+  switch (effect) {
     case 'capacity':
-      if (s.park) { def.rideCapacity = mag; def.thrill = 0.3; }
+      if (park) { def.rideCapacity = mag; def.thrill = 0.3; }
       else def.housing = mag;
       break;
     case 'econ':
@@ -347,10 +335,47 @@ export function createCustomBuilding(s: GameState, input: CustomBuildingInput): 
     case 'energy': def.supply = mag; break;
     case 'transit': def.transit = mag; break;
   }
+}
+
+function buildCustomDef(s: GameState, id: string, input: CustomBuildingInput): BuildingDef {
+  const name = input.name.trim().slice(0, 40) || 'Bâtiment personnalisé';
+  const icon = input.icon.trim().slice(0, 4) || '🏗️';
+  const cost = Math.max(MIN_CUSTOM_COST, Math.min(MAX_CUSTOM_COST, Math.round(input.cost) || 0));
+  const mag = Math.max(1, Math.round(input.magnitude) || 0);
+  const def: BuildingDef = {
+    id, name, icon, cat: CUSTOM_EFFECT_CAT[input.effect][s.park ? 'park' : 'city'],
+    desc: `Bâtiment personnalisé.`, cost, upkeep: Math.max(1, Math.round(cost / 20)),
+    level: 0, turns: CUSTOM_BUILD_TURNS, terrains: CUSTOM_TERRAINS,
+    modes: [s.park ? 'park' : 'city'], customEffect: input.effect, customMagnitude: mag,
+  };
+  applyCustomEffect(def, input.effect, mag, s.park);
+  return def;
+}
+
+/** Crée un bâtiment personnalisé et l'ajoute au catalogue de la barre d'outils (pour cette partie). Coût ≥ 1 M€, chantier de 3 trimestres. */
+export function createCustomBuilding(s: GameState, input: CustomBuildingInput): Result {
+  const f = frozen(s);
+  if (f) return f;
+  if (s.customBuildings.length >= MAX_CUSTOM_BUILDINGS) return ko(`${MAX_CUSTOM_BUILDINGS} bâtiments personnalisés au maximum.`);
+  const id = `custom_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
+  const def = buildCustomDef(s, id, input);
   registerCustomBuilding(def);
   s.customBuildings.push(def);
-  pushLog(s, 'info', `Nouveau bâtiment personnalisé disponible : ${icon} ${name}.`);
-  return ok(`${icon} ${name} ajouté à la barre d’outils !`);
+  pushLog(s, 'info', `Nouveau bâtiment personnalisé disponible : ${def.icon} ${def.name}.`);
+  return ok(`${def.icon} ${def.name} ajouté à la barre d’outils !`);
+}
+
+/** Modifie un bâtiment personnalisé existant (les exemplaires déjà construits reprennent ses nouvelles caractéristiques). */
+export function updateCustomBuilding(s: GameState, id: string, input: CustomBuildingInput): Result {
+  const f = frozen(s);
+  if (f) return f;
+  const i = s.customBuildings.findIndex((b) => b.id === id);
+  if (i < 0) return ko('Bâtiment personnalisé introuvable.');
+  const def = buildCustomDef(s, id, input);
+  registerCustomBuilding(def);
+  s.customBuildings[i] = def;
+  pushLog(s, 'info', `Bâtiment personnalisé modifié : ${def.icon} ${def.name}.`);
+  return ok(`${def.icon} ${def.name} mis à jour !`);
 }
 
 const MAX_FUNDRAISERS = 3;

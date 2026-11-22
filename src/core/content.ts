@@ -95,6 +95,9 @@ export interface BuildingDef {
   thrill?: number;
   /** Modes de jeu où ce bâtiment est proposé. Par défaut : commune/région/pays uniquement. */
   modes?: ('city' | 'park')[];
+  /** Pour un bâtiment créé par le joueur : effet et intensité d'origine (sert à pré-remplir le formulaire de modification). */
+  customEffect?: CustomEffect;
+  customMagnitude?: number;
 }
 
 const LAND: Terrain[] = ['plain', 'forest', 'hill'];
