@@ -1,6 +1,7 @@
 import {
-  B, BUILDINGS, CAT_LABEL, CAT_ORDER, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY, LEVEL_EXEC, LEVEL_NAME,
-  LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS, PARK_CAT_ORDER, PARK_CAT_LABEL,
+  B, BUILDINGS, CAT_LABEL, CAT_ORDER, CUSTOM_EFFECT_LABEL, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY,
+  LEVEL_EXEC, LEVEL_NAME, LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS, PARK_CAT_ORDER, PARK_CAT_LABEL,
+  type CustomEffect,
 } from '../core/content';
 import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actions';
 import { REFERENDUMS, campaignBonus, districtShares, listColor, listName } from '../core/elections';
@@ -84,6 +85,8 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
       h += btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
     }
   }
+  h += `<h4>Personnalisation</h4>
+    <button class="tool" data-open="custom-building" title="Définir un nouveau type de bâtiment (nom, icône, effet, coût) et l’ajouter à la barre d’outils."><span class="ic">➕</span><span class="nm">Créer un bâtiment</span><span class="co"></span></button>`;
   void m;
   return h;
 }
@@ -532,6 +535,22 @@ export function confirmDeleteDialog(g: GameMeta): string {
   return `<h2>🗑️ Supprimer la partie</h2>
   <p>Voulez-vous vraiment supprimer définitivement « <b>${esc(g.name)}</b> » (${dateLabel(g.turn)}) ? Cette action est irréversible.</p>
   <div class="actions"><button data-dlg="close">Annuler</button><button class="danger" data-dlg="confirm-delete" data-id="${g.id}">Supprimer</button></div>`;
+}
+
+export function customBuildingDialog(s: GameState): string {
+  const mode = s.park ? 'park' : 'city';
+  const effects = Object.keys(CUSTOM_EFFECT_LABEL) as CustomEffect[];
+  const unitOf = (eff: CustomEffect) => (s.park ? CUSTOM_EFFECT_LABEL[eff].unitPark : CUSTOM_EFFECT_LABEL[eff].unitCity);
+  return `<h2>➕ Créer un bâtiment personnalisé</h2>
+  <div class="field"><label>Nom</label><input type="text" id="cb-name" value="Mon bâtiment" maxlength="40" style="width:100%"/></div>
+  <div class="field"><label>Icône (emoji)</label><input type="text" id="cb-icon" value="🏗️" maxlength="4" style="width:80px"/></div>
+  <div class="field"><label>Effet</label><select id="cb-effect" style="width:100%">
+    ${effects.map((e) => `<option value="${e}">${CUSTOM_EFFECT_LABEL[e][mode]}</option>`).join('')}
+  </select></div>
+  <div class="field"><label>Intensité de l’effet — <span id="cb-unit">${unitOf('capacity')}</span></label><input type="number" id="cb-magnitude" value="300" min="1" max="100000" style="width:100%"/></div>
+  <div class="field"><label>Coût de construction (k€)</label><input type="number" id="cb-cost" value="250" min="10" max="20000" style="width:100%"/></div>
+  <div class="mute">Entretien et durée de chantier sont calculés automatiquement à partir du coût.</div>
+  <div class="actions"><button data-dlg="close">Annuler</button><button class="primary" data-dlg="create-custom">➕ Créer le bâtiment</button></div>`;
 }
 
 export function menuDialog(): string {

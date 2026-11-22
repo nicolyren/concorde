@@ -1,4 +1,4 @@
-import { B, LEVEL_RADIUS, PARTIES, PLATFORMS } from './content';
+import { B, LEVEL_RADIUS, PARTIES, PLATFORMS, registerCustomBuilding } from './content';
 import { hexDist, neighborsOf } from './hex';
 import { generateMap } from './mapgen';
 import { makeRng, rand } from './rng';
@@ -80,6 +80,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     proposals: [],
     nextProposalTurn: 4,
     fundraisers: [],
+    customBuildings: [],
     lastReferendum: -10,
     referendums: [],
     unlocks: {},
@@ -157,6 +158,8 @@ export function deserialize(raw: string): GameState | null {
     if (s.rates.entry === undefined) s.rates.entry = 12;
     if (!s.fundraisers) s.fundraisers = [];
     if (s.park === undefined) s.park = false;
+    if (!s.customBuildings) s.customBuildings = [];
+    for (const def of s.customBuildings) registerCustomBuilding(def);
     return s;
   } catch {
     return null;

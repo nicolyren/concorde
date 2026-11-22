@@ -1,3 +1,5 @@
+import type { BuildingDef } from './content';
+
 export type Terrain = 'water' | 'plain' | 'forest' | 'hill' | 'mountain';
 export type Infra = 'none' | 'road' | 'highway' | 'rail';
 export type Zone = 'free' | 'residential' | 'economic' | 'industrial' | 'nature' | 'agri';
@@ -144,6 +146,7 @@ export interface GameState {
   proposals: Proposal[];
   nextProposalTurn: number;
   fundraisers: Fundraiser[];
+  customBuildings: BuildingDef[];
   lastReferendum: number;
   referendums: RefResult[];
   unlocks: Record<string, number>;

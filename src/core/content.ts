@@ -172,6 +172,40 @@ export const BUILDINGS: BuildingDef[] = [
 
 export const B: Record<string, BuildingDef> = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
+export type CustomEffect = 'capacity' | 'econ' | 'health' | 'safety' | 'culture' | 'green' | 'energy' | 'transit';
+
+export const CUSTOM_EFFECT_CAT: Record<CustomEffect, { city: Cat; park: Cat }> = {
+  capacity: { city: 'logement', park: 'attraction' },
+  econ: { city: 'economie', park: 'economie' },
+  health: { city: 'sante', park: 'sante' },
+  safety: { city: 'securite', park: 'securite' },
+  culture: { city: 'culture', park: 'culture' },
+  green: { city: 'environnement', park: 'environnement' },
+  energy: { city: 'energie', park: 'energie' },
+  transit: { city: 'transport', park: 'transport' },
+};
+
+export const CUSTOM_EFFECT_LABEL: Record<CustomEffect, { city: string; park: string; unitCity: string; unitPark: string }> = {
+  capacity: { city: 'Logement', park: 'Attraction', unitCity: 'habitants', unitPark: 'visiteurs' },
+  econ: { city: 'Emplois & production', park: 'Restauration / boutique', unitCity: 'emplois', unitPark: 'emplois' },
+  health: { city: 'Santé', park: 'Hygiène & secours', unitCity: 'personnes desservies', unitPark: 'visiteurs desservis' },
+  safety: { city: 'Sécurité', park: 'Sécurité', unitCity: 'personnes desservies', unitPark: 'visiteurs desservis' },
+  culture: { city: 'Culture', park: 'Spectacle', unitCity: 'points', unitPark: 'points' },
+  green: { city: 'Environnement', park: 'Environnement', unitCity: 'points', unitPark: 'points' },
+  energy: { city: 'Énergie', park: 'Énergie', unitCity: 'unités', unitPark: 'unités' },
+  transit: { city: 'Transport', park: 'Accès & stationnement', unitCity: 'unités', unitPark: 'unités' },
+};
+
+/** Ajoute (ou met à jour) un bâtiment personnalisé dans le catalogue partagé B / BUILDINGS. */
+export function registerCustomBuilding(def: BuildingDef) {
+  B[def.id] = def;
+  const i = BUILDINGS.findIndex((b) => b.id === def.id);
+  if (i >= 0) BUILDINGS[i] = def;
+  else BUILDINGS.push(def);
+}
+
+export const CUSTOM_TERRAINS = FLAT;
+
 export const INFRA = {
   road: { name: 'Route', icon: '🛣️', cost: 12, level: 0 as Level },
   highway: { name: 'Autoroute', icon: '🚗', cost: 70, level: 1 as Level },

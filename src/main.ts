@@ -1,5 +1,5 @@
 import './style.css';
-import { B, FUNDING_LABEL } from './core/content';
+import { B, CUSTOM_EFFECT_LABEL, FUNDING_LABEL, type CustomEffect } from './core/content';
 import * as A from './core/actions';
 import { REFERENDUMS } from './core/elections';
 import { computeMetrics, endTurn } from './core/sim';
@@ -266,8 +266,11 @@ $('btn-pause').addEventListener('click', pauseGame);
 
 // ------------------------------------------------------------------ interactions des panneaux
 $('toolbar').addEventListener('click', (e) => {
-  const b = (e.target as HTMLElement).closest('[data-tool]') as HTMLElement | null;
-  if (b) setTool(b.dataset.tool!);
+  const el = e.target as HTMLElement;
+  const b = el.closest('[data-tool]') as HTMLElement | null;
+  if (b) return setTool(b.dataset.tool!);
+  const o = el.closest('[data-open]') as HTMLElement | null;
+  if (o && o.dataset.open === 'custom-building') openCustomBuildingDialog();
 });
 $('tabs').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-tab]') as HTMLElement | null;
@@ -368,6 +371,17 @@ function openMenu() {
   dlg.innerHTML = P.menuDialog();
   if (!dlg.open) dlg.showModal();
 }
+function openCustomBuildingDialog() {
+  dlg.innerHTML = P.customBuildingDialog(game);
+  if (!dlg.open) dlg.showModal();
+}
+dlg.addEventListener('change', (e) => {
+  const t = e.target as HTMLElement;
+  if (t.id === 'cb-effect') {
+    const eff = (t as HTMLSelectElement).value as CustomEffect;
+    $('cb-unit').textContent = game.park ? CUSTOM_EFFECT_LABEL[eff].unitPark : CUSTOM_EFFECT_LABEL[eff].unitCity;
+  }
+});
 dlg.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('[data-dlg]') as HTMLElement | null;
   if (!b) return;
@@ -380,6 +394,21 @@ dlg.addEventListener('click', (e) => {
       dlg.close();
       renderHome();
       break;
+    case 'create-custom': {
+      const name = (document.getElementById('cb-name') as HTMLInputElement).value;
+      const icon = (document.getElementById('cb-icon') as HTMLInputElement).value;
+      const effect = (document.getElementById('cb-effect') as HTMLSelectElement).value as CustomEffect;
+      const magnitude = Number((document.getElementById('cb-magnitude') as HTMLInputElement).value);
+      const cost = Number((document.getElementById('cb-cost') as HTMLInputElement).value);
+      const r = A.createCustomBuilding(game, { name, icon, effect, magnitude, cost });
+      report(r);
+      if (r.ok) {
+        dlg.close();
+        save();
+        refresh();
+      }
+      break;
+    }
     case 'start': {
       const name = (document.getElementById('ng-name') as HTMLInputElement).value;
       const park = (document.getElementById('ng-park') as HTMLInputElement).value === '1';
