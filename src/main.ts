@@ -275,13 +275,6 @@ $('toolbar').addEventListener('click', (e) => {
   else if (o.dataset.open === 'edit-custom') {
     const def = game.customBuildings.find((b) => b.id === o.dataset.id);
     if (def) openCustomBuildingDialog(def);
-  } else if (o.dataset.open === 'delete-custom') {
-    const r = A.deleteCustomBuilding(game, o.dataset.id!);
-    report(r);
-    if (r.ok) {
-      save();
-      refresh();
-    }
   }
 });
 $('tabs').addEventListener('click', (e) => {
@@ -416,6 +409,16 @@ dlg.addEventListener('click', (e) => {
       const r = editId
         ? A.updateCustomBuilding(game, editId, { name, icon, effect, magnitude, cost })
         : A.createCustomBuilding(game, { name, icon, effect, magnitude, cost });
+      report(r);
+      if (r.ok) {
+        dlg.close();
+        save();
+        refresh();
+      }
+      break;
+    }
+    case 'delete-custom': {
+      const r = A.deleteCustomBuilding(game, b.dataset.id!);
       report(r);
       if (r.ok) {
         dlg.close();

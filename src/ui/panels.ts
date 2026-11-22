@@ -85,8 +85,7 @@ export function renderToolbar(s: GameState, m: Metrics, tool: string): string {
       const mainBtn = btn(`build:${def.id}`, def.icon, def.name, `${Math.round(aff)}`, lock, `${def.desc}\nCoût : ${Math.round(aff)} k€ · entretien ${def.upkeep} k€/trim. · chantier ${def.turns} trim.`);
       if (s.customBuildings.some((c) => c.id === def.id)) {
         h += `<div style="display:flex;gap:4px;align-items:stretch;margin:2px 0"><div style="flex:1;min-width:0">${mainBtn}</div>
-          <button style="flex:0 0 32px;width:32px;padding:0;border-radius:7px" data-open="edit-custom" data-id="${def.id}" title="Modifier ce bâtiment personnalisé">✏️</button>
-          <button style="flex:0 0 32px;width:32px;padding:0;border-radius:7px" data-open="delete-custom" data-id="${def.id}" title="Supprimer ce type de bâtiment (si aucun exemplaire n’est construit)">🗑️</button></div>`;
+          <button style="flex:0 0 32px;width:32px;padding:0;border-radius:7px" data-open="edit-custom" data-id="${def.id}" title="Modifier ce bâtiment personnalisé">✏️</button></div>`;
       } else {
         h += mainBtn;
       }
@@ -559,7 +558,7 @@ export function customBuildingDialog(s: GameState, edit?: BuildingDef): string {
   <div class="field"><label>Coût de construction (k€, 1 000 minimum = 1 M€)</label><input type="number" id="cb-cost" value="${edit?.cost ?? 1500}" min="1000" max="50000" style="width:100%"/></div>
   <div class="mute">Entretien calculé automatiquement à partir du coût · chantier de 3 trimestres.</div>
   <input type="hidden" id="cb-edit-id" value="${edit?.id ?? ''}"/>
-  <div class="actions"><button data-dlg="close">Annuler</button><button class="primary" data-dlg="create-custom">${edit ? '✏️ Enregistrer les modifications' : '➕ Créer le bâtiment'}</button></div>`;
+  <div class="actions">${edit ? `<button class="danger" data-dlg="delete-custom" data-id="${edit.id}" style="margin-right:auto">🗑️ Supprimer</button>` : ''}<button data-dlg="close">Annuler</button><button class="primary" data-dlg="create-custom">${edit ? '✏️ Enregistrer les modifications' : '➕ Créer le bâtiment'}</button></div>`;
 }
 
 export function menuDialog(): string {
