@@ -338,7 +338,7 @@ panel.addEventListener('input', (e) => {
   const v = Number(t.value);
   if (act === 'rate') {
     const key = t.dataset.key;
-    const lbl = key === 'transit' ? `${Math.round(v)} k€` : key === 'toll' ? `${v.toFixed(1)} k€` : key === 'entry' ? `${Math.round(v)} €` : `${v} %`;
+    const lbl = key === 'transit' || key === 'plane' ? `${Math.round(v)} k€` : key === 'toll' ? `${v.toFixed(1)} k€` : key === 'entry' ? `${Math.round(v)} €` : `${v} %`;
     $('lbl-rate-' + key)!.textContent = lbl;
   }
   if (act === 'funding') $('lbl-fund-' + t.dataset.key)!.textContent = `${Math.round(v * 100)} %`;
@@ -351,7 +351,7 @@ panel.addEventListener('change', (e) => {
   if (!act) return;
   let r: A.Result | null = null;
   switch (act) {
-    case 'rate': r = A.setRate(game, t.dataset.key as 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry', Number(t.value)); break;
+    case 'rate': r = A.setRate(game, t.dataset.key as 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry' | 'plane', Number(t.value)); break;
     case 'funding': r = A.setFunding(game, t.dataset.key!, Number(t.value)); break;
     case 'prate': r = A.setPolicyRate(game, Number(t.value)); break;
     case 'campaign': r = A.setCampaign(game, Number(t.value)); break;

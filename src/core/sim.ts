@@ -125,7 +125,7 @@ export function computeMetrics(s: GameState): Metrics {
   // ---- Agrégats par bâtiment
   let housingCap = 0, j0 = 0, j1 = 0;
   let eduP = 0, eduS = 0, eduH = 0, health = 0, safety = 0, cult = 0, transit = 0;
-  let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, econBonus = 0, banks = 0;
+  let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, econBonus = 0, banks = 0, airports = 0;
   let thrillWeighted = 0;
   const rideTypes = new Set<string>();
   let servedCount = 0, totalBuildings = 0;
@@ -183,6 +183,7 @@ export function computeMetrics(s: GameState): Metrics {
     if (def.credit) credit += def.credit;
     if (def.econBonus) econBonus += def.econBonus;
     if (def.cat === 'finance') banks++;
+    if (def.id === 'aeroport') airports++;
     // Données par district
     const d = dist[t.district];
     if ((def.pollution ?? 0) >= 0.8) d.polluters++;
@@ -279,6 +280,7 @@ export function computeMetrics(s: GameState): Metrics {
     corp: output,
     property: 0,
     tickets: (s.rates.entry / 1000) * pop * ci,
+    planeTickets: 0,
     tolls: 0,
     transfers: 0,
     vat: 0,
@@ -288,12 +290,13 @@ export function computeMetrics(s: GameState): Metrics {
     corp: (s.rates.corp / 100) * output,
     property: (s.rates.property / 100) * pop * 1.1 * ci,
     tickets: connectedStations * s.rates.transit * Math.min(1, pop / 3000) * ci,
+    planeTickets: airports * s.rates.plane * Math.min(1, pop / 8000) * ci,
     tolls: px.tollsPerTile * s.rates.toll * highwayTiles,
     transfers: L === 0 ? 0.06 * pop * ci : L === 1 ? 0.04 * pop * ci : 0,
     vat: L === 2 ? 0.07 * incomeBase : 0,
     total: 0,
   };
-  revenue.total = revenue.income + revenue.corp + revenue.property + revenue.tickets + revenue.tolls + revenue.transfers + revenue.vat;
+  revenue.total = revenue.income + revenue.corp + revenue.property + revenue.tickets + revenue.planeTickets + revenue.tolls + revenue.transfers + revenue.vat;
 
   const upkeep: Record<string, number> = {};
   let upkeepTotal = 0;

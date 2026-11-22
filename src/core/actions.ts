@@ -164,12 +164,13 @@ export function plantForest(s: GameState, idx: number): Result {
 
 // ---------------------------------------------------------------- Finances
 
-export function setRate(s: GameState, key: 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry', v: number): Result {
+export function setRate(s: GameState, key: 'income' | 'corp' | 'property' | 'transit' | 'toll' | 'entry' | 'plane', v: number): Result {
   const f = frozen(s);
   if (f) return f;
   if (key === 'transit') s.rates.transit = Math.max(0, Math.min(40, Math.round(v)));
   else if (key === 'toll') s.rates.toll = Math.max(0, Math.min(5, Math.round(v * 10) / 10));
   else if (key === 'entry') s.rates.entry = Math.max(0, Math.min(50, Math.round(v)));
+  else if (key === 'plane') s.rates.plane = Math.max(0, Math.min(150, Math.round(v)));
   else s.rates[key] = Math.max(0, Math.min(30, Math.round(v)));
   return ok();
 }

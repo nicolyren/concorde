@@ -59,7 +59,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     pop: opts.park ? 0 : 300,
     satisfaction: 60,
     wellbeing: 60,
-    rates: { income: 8, corp: 8, property: 8, transit: 18, toll: 1.5, entry: 12 },
+    rates: { income: 8, corp: 8, property: 8, transit: 18, toll: 1.5, entry: 12, plane: 60 },
     funding: { education: 1, health: 1, safety: 1, culture: 1, environment: 1, transport: 1 },
     policies: [],
     policyRate: 3,
@@ -156,6 +156,7 @@ export function deserialize(raw: string): GameState | null {
     if (s.rates.transit === undefined) s.rates.transit = 18;
     if (s.rates.toll === undefined) s.rates.toll = 1.5;
     if (s.rates.entry === undefined) s.rates.entry = 12;
+    if (s.rates.plane === undefined) s.rates.plane = 60;
     if (!s.fundraisers) s.fundraisers = [];
     if (s.park === undefined) s.park = false;
     if (!s.customBuildings) s.customBuildings = [];

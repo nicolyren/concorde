@@ -187,7 +187,7 @@ export function panelBudget(s: GameState, m: Metrics): string {
   const rowv = (label: string, v: number, neg = false) => v === 0 ? '' : `<tr><td>${label}</td><td class="${neg ? 'neg' : ''}">${neg ? '−' : ''}${fmtK(v)}</td></tr>`;
   let h = `<div class="card"><h3>Comptes du trimestre</h3><table>
     ${rowv('Impôt sur le revenu', r.income)}${rowv('Impôt sur les entreprises', r.corp)}${rowv('Taxe foncière', r.property)}
-    ${rowv('Billets de train', r.tickets)}${rowv('Péages', r.tolls)}${rowv('Dotation de l’État', r.transfers)}${rowv('TVA', r.vat)}
+    ${rowv('Billets de train', r.tickets)}${rowv('Billets d’avion', r.planeTickets)}${rowv('Péages', r.tolls)}${rowv('Dotation de l’État', r.transfers)}${rowv('TVA', r.vat)}
     <tr class="sep"><td>Recettes</td><td class="pos">${fmtK(r.total)}</td></tr>
     ${rowv('Entretien des équipements', e.upkeep, true)}${rowv('Administration', e.admin, true)}${rowv('Mesures en vigueur', e.policies, true)}${rowv('Intérêts de la dette', e.interest, true)}
     <tr class="sep"><td>Solde de fonctionnement</td><td class="${m.operatingBalance >= 0 ? 'pos' : 'neg'}">${fmtK(m.operatingBalance)}</td></tr>
@@ -202,6 +202,12 @@ export function panelBudget(s: GameState, m: Metrics): string {
   h += `<div class="card"><h3>Tarifs des transports</h3>
     <div class="sl"><label><span>Prix du billet de train</span><b id="lbl-rate-transit">${Math.round(s.rates.transit)} k€</b></label><input type="range" min="0" max="40" step="1" value="${s.rates.transit}" data-act="rate" data-key="transit" ${dis}/></div>
     <div class="mute">Par gare connectée, modulé par la population desservie ; n’a d’effet qu’avec un réseau ferré relié.</div>`;
+  if ((m.counts.aeroport ?? 0) > 0) {
+    h += `<div class="sl" style="margin-top:10px"><label><span>Prix du billet d’avion</span><b id="lbl-rate-plane">${Math.round(s.rates.plane)} k€</b></label><input type="range" min="0" max="150" step="5" value="${s.rates.plane}" data-act="rate" data-key="plane" ${dis}/></div>
+      <div class="mute">Par aéroport régional, modulé par la population desservie.</div>`;
+  } else {
+    h += `<div class="mute" style="margin-top:10px">Construisez un aéroport régional (catégorie « Transport ») pour fixer un prix du billet d’avion.</div>`;
+  }
   if (s.policies.includes('autoroutes_peage')) {
     h += `<div class="sl" style="margin-top:10px"><label><span>Péage autoroutier</span><b id="lbl-rate-toll">${s.rates.toll.toFixed(1)} k€</b></label><input type="range" min="0" max="5" step="0.1" value="${s.rates.toll}" data-act="rate" data-key="toll" ${dis}/></div>
       <div class="mute">Par tuile d’autoroute et par trimestre.</div>`;

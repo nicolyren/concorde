@@ -123,7 +123,7 @@ export interface GameState {
   pop: number;
   satisfaction: number;
   wellbeing: number;
-  rates: { income: number; corp: number; property: number; transit: number; toll: number; entry: number };
+  rates: { income: number; corp: number; property: number; transit: number; toll: number; entry: number; plane: number };
   funding: Record<string, number>;
   policies: string[];
   policyRate: number;
@@ -187,7 +187,7 @@ export interface Metrics {
   unemployment: number;
   incomeBase: number;
   output: number;
-  revenue: { income: number; corp: number; property: number; tickets: number; tolls: number; transfers: number; vat: number; total: number };
+  revenue: { income: number; corp: number; property: number; tickets: number; planeTickets: number; tolls: number; transfers: number; vat: number; total: number };
   upkeep: Record<string, number>;
   expenses: { upkeep: number; admin: number; policies: number; interest: number; operating: number; principal: number };
   operatingBalance: number;
