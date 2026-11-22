@@ -207,6 +207,13 @@ export function registerCustomBuilding(def: BuildingDef) {
   else BUILDINGS.push(def);
 }
 
+/** Retire un bâtiment personnalisé du catalogue partagé B / BUILDINGS. */
+export function unregisterCustomBuilding(id: string) {
+  delete B[id];
+  const i = BUILDINGS.findIndex((b) => b.id === id);
+  if (i >= 0) BUILDINGS.splice(i, 1);
+}
+
 export const CUSTOM_TERRAINS = FLAT;
 
 export const INFRA = {

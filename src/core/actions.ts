@@ -1,5 +1,5 @@
 import {
-  B, CUSTOM_EFFECT_CAT, CUSTOM_TERRAINS, DISTRICT_NAMES, INFRA, P, POLICIES, registerCustomBuilding,
+  B, CUSTOM_EFFECT_CAT, CUSTOM_TERRAINS, DISTRICT_NAMES, INFRA, P, POLICIES, registerCustomBuilding, unregisterCustomBuilding,
   type BuildingDef, type Cat, type CustomEffect,
 } from './content';
 import { neighborsOf } from './hex';
@@ -376,6 +376,20 @@ export function updateCustomBuilding(s: GameState, id: string, input: CustomBuil
   s.customBuildings[i] = def;
   pushLog(s, 'info', `Bâtiment personnalisé modifié : ${def.icon} ${def.name}.`);
   return ok(`${def.icon} ${def.name} mis à jour !`);
+}
+
+/** Supprime un type de bâtiment personnalisé du catalogue (impossible tant qu'un exemplaire est encore construit). */
+export function deleteCustomBuilding(s: GameState, id: string): Result {
+  const f = frozen(s);
+  if (f) return f;
+  const i = s.customBuildings.findIndex((b) => b.id === id);
+  if (i < 0) return ko('Bâtiment personnalisé introuvable.');
+  if (s.tiles.some((t) => t.building === id)) return ko('Démolissez tous les exemplaires déjà construits avant de supprimer ce type de bâtiment.');
+  const def = s.customBuildings[i];
+  s.customBuildings.splice(i, 1);
+  unregisterCustomBuilding(id);
+  pushLog(s, 'info', `Bâtiment personnalisé supprimé : ${def.icon} ${def.name}.`);
+  return ok(`${def.icon} ${def.name} supprimé.`);
 }
 
 const MAX_FUNDRAISERS = 3;

@@ -275,6 +275,13 @@ $('toolbar').addEventListener('click', (e) => {
   else if (o.dataset.open === 'edit-custom') {
     const def = game.customBuildings.find((b) => b.id === o.dataset.id);
     if (def) openCustomBuildingDialog(def);
+  } else if (o.dataset.open === 'delete-custom') {
+    const r = A.deleteCustomBuilding(game, o.dataset.id!);
+    report(r);
+    if (r.ok) {
+      save();
+      refresh();
+    }
   }
 });
 $('tabs').addEventListener('click', (e) => {
