@@ -9,6 +9,9 @@ import type { GameState, Metrics, Zone } from './core/types';
 import { MapView, type Overlay } from './ui/mapview';
 import * as P from './ui/panels';
 import { deleteGame, listGames, loadGame, migrateLegacySave, newId, saveGame } from './ui/saves';
+import { buyFood, goToWork, newLife, FOOD_COST, WORK_PAY, type LifeState } from './core/life';
+import { LifeView } from './ui/lifeview';
+import { loadLifeSave, saveLifeSave } from './ui/lifesave';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -22,6 +25,10 @@ let appActive = false;
 const view = new MapView($<HTMLCanvasElement>('map'));
 const dlg = $<HTMLDialogElement>('dlg');
 
+let life: LifeState | null = null;
+let lifeActive = false;
+const lifeView = new LifeView($<HTMLCanvasElement>('life-map'));
+
 // ------------------------------------------------------------------ utilitaires
 function save() {
   if (!currentId) return;
@@ -34,16 +41,40 @@ function renderHome() {
 
 function showHome() {
   appActive = false;
+  lifeActive = false;
   $('app').classList.add('hidden');
+  $('life').classList.add('hidden');
   $('home').classList.remove('hidden');
   renderHome();
 }
 
 function showGame() {
   appActive = true;
+  lifeActive = false;
   $('home').classList.add('hidden');
+  $('life').classList.add('hidden');
   $('app').classList.remove('hidden');
   view.resize();
+}
+
+function showLife() {
+  if (!life) return;
+  appActive = false;
+  lifeActive = true;
+  $('home').classList.add('hidden');
+  $('app').classList.add('hidden');
+  $('life').classList.remove('hidden');
+  lifeView.resize();
+  lifeView.state = life;
+  lifeView.spawn(life);
+  renderLifeHud();
+  startLifeLoop();
+}
+
+function quitLife() {
+  if (life) saveLifeSave(life);
+  lifePressed.clear();
+  showHome();
 }
 
 let toastTimer = 0;
@@ -281,6 +312,95 @@ $('btn-walk').addEventListener('click', () => {
   view.startWalk(game);
   $('btn-walk').classList.add('active');
 });
+
+// ------------------------------------------------------------------ mode « pays parfait » (vie quotidienne)
+const LIFE_KEYS: Record<string, [number, number]> = {
+  arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0],
+  w: [0, -1], z: [0, -1], s: [0, 1], a: [-1, 0], q: [-1, 0], d: [1, 0],
+};
+const LIFE_SPEED = 170; // px/s en espace monde
+const lifePressed = new Set<string>();
+let lifeRaf = 0;
+let lifeLast = 0;
+
+function renderLifeHud() {
+  if (!life) return;
+  const hungry = life.hunger >= 70;
+  $('life-stats').innerHTML = `
+    <span class="chip">📅 Jour <b>${life.day}</b></span>
+    <span class="chip ${life.budget < 0 ? 'bad' : ''}">💰 <b>${life.budget}€</b></span>
+    <span class="chip ${hungry ? 'bad' : ''}">🍽️ Faim <b>${life.hunger}</b>/100</span>`;
+  const nearShop = lifeView.nearTile(life, life.shop);
+  const nearJob = lifeView.nearTile(life, life.job);
+  let html = '';
+  if (nearShop) html += `<button class="primary" id="life-buy">🛒 Acheter à manger (${FOOD_COST}€)</button>`;
+  if (nearJob) html += `<button class="primary" id="life-work">💼 Aller travailler (+${WORK_PAY}€)</button>`;
+  $('life-actions').innerHTML = html;
+}
+
+function lifeTick(ts: number) {
+  lifeRaf = 0;
+  if (!lifeActive || !life) return;
+  let dx = 0, dy = 0;
+  for (const k of lifePressed) {
+    const v = LIFE_KEYS[k];
+    if (v) { dx += v[0]; dy += v[1]; }
+  }
+  const dt = Math.min(0.05, (ts - lifeLast) / 1000);
+  lifeLast = ts;
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy);
+    const step = (LIFE_SPEED * dt) / len;
+    lifeView.stepWalker(dx * step, dy * step, life);
+    lifeView.centerOnWorld(lifeView.walkerX, lifeView.walkerY);
+    lifeView.requestDraw();
+    renderLifeHud();
+  }
+  lifeRaf = requestAnimationFrame(lifeTick);
+}
+function startLifeLoop() {
+  if (!lifeRaf) {
+    lifeLast = performance.now();
+    lifeRaf = requestAnimationFrame(lifeTick);
+  }
+}
+
+$('home-new-life').addEventListener('click', () => {
+  life = loadLifeSave() ?? newLife();
+  showLife();
+  toast('Bienvenue ! Déplacez-vous pour aller faire vos courses ou au travail.');
+});
+$('life-quit').addEventListener('click', quitLife);
+$('life-actions').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest('button');
+  if (!b || !life) return;
+  const r = b.id === 'life-buy' ? buyFood(life) : b.id === 'life-work' ? goToWork(life) : null;
+  if (r) {
+    toast(r.msg, !r.ok);
+    if (r.ok) {
+      saveLifeSave(life);
+      renderLifeHud();
+    }
+  }
+});
+
+let lifeDrag: { x: number; y: number } | null = null;
+const lifeCanvas = lifeView.canvas;
+lifeCanvas.addEventListener('pointerdown', (e) => {
+  lifeCanvas.setPointerCapture(e.pointerId);
+  lifeDrag = { x: e.offsetX, y: e.offsetY };
+});
+lifeCanvas.addEventListener('pointermove', (e) => {
+  if (!lifeDrag) return;
+  lifeView.pan(e.offsetX - lifeDrag.x, e.offsetY - lifeDrag.y);
+  lifeDrag = { x: e.offsetX, y: e.offsetY };
+});
+lifeCanvas.addEventListener('pointerup', () => { lifeDrag = null; });
+lifeCanvas.addEventListener('pointerleave', () => { lifeDrag = null; });
+lifeCanvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  lifeView.zoomAt(e.offsetX, e.offsetY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
+}, { passive: false });
 
 // ------------------------------------------------------------------ tour suivant
 function nextTurn() {
@@ -567,8 +687,16 @@ $('home-list').addEventListener('click', (e) => {
 
 window.addEventListener('keydown', (e) => {
   const tg = e.target as HTMLElement;
-  if (dlg.open || !appActive || tg.tagName === 'INPUT' || tg.tagName === 'SELECT' || tg.tagName === 'TEXTAREA') return;
+  if (dlg.open || tg.tagName === 'INPUT' || tg.tagName === 'SELECT' || tg.tagName === 'TEXTAREA') return;
   const key = e.key.toLowerCase();
+  if (lifeActive) {
+    if (LIFE_KEYS[key]) {
+      e.preventDefault();
+      lifePressed.add(key);
+    } else if (e.key === 'Escape') quitLife();
+    return;
+  }
+  if (!appActive) return;
   if (view.walking && WALK_KEYS[key]) {
     e.preventDefault();
     walkPressed.add(key);
@@ -585,6 +713,7 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   walkPressed.delete(e.key.toLowerCase());
+  lifePressed.delete(e.key.toLowerCase());
 });
 
 // ------------------------------------------------------------------ démarrage

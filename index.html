@@ -15,6 +15,7 @@
       <div class="actions" style="justify-content:flex-start">
         <button id="home-new" class="primary">🆕 Nouvelle partie</button>
         <button id="home-new-park">🎢 Créer un parc d’attraction</button>
+        <button id="home-new-life">🌻 Vivre dans un pays parfait</button>
         <button id="home-import">📂 Importer une sauvegarde</button>
       </div>
       <h2>Vos parties</h2>
@@ -55,6 +56,20 @@
         <nav id="tabs"></nav>
         <div id="panel"></div>
       </aside>
+    </div>
+  </div>
+  <div id="life" class="hidden">
+    <header id="life-top">
+      <div class="brand">🌻 <b>Pays parfait</b></div>
+      <div id="life-stats"></div>
+      <div class="top-actions">
+        <button id="life-quit">⏸️ Quitter</button>
+      </div>
+    </header>
+    <div id="life-wrap">
+      <canvas id="life-map"></canvas>
+      <div id="life-help" class="mute">Déplacez-vous avec les flèches ou ZQSD/WASD.</div>
+      <div id="life-actions"></div>
     </div>
   </div>
   <div id="toast"></div>

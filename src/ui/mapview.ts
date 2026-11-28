@@ -8,7 +8,7 @@ import type { GameState, Terrain } from '../core/types';
 export type Overlay = 'normal' | 'zones' | 'districts' | 'serve' | 'pollution';
 
 /** Quelques nuances par terrain (au lieu d'un aplat unique) pour casser l'effet « damier » trop régulier. */
-const TERRAIN_SHADES: Record<Terrain, string[]> = {
+export const TERRAIN_SHADES: Record<Terrain, string[]> = {
   water: ['#4a98ca', '#4f9fd1', '#56a7d8'],
   plain: ['#a3ca74', '#a9cf7c', '#b2d587'],
   forest: ['#468f55', '#4f9d5d', '#5aa366'],
@@ -16,7 +16,7 @@ const TERRAIN_SHADES: Record<Terrain, string[]> = {
   mountain: ['#878992', '#8e9096', '#95979d'],
 };
 /** Hachage déterministe (0..1) d'un index de tuile, pour varier le rendu sans état ni aléa de jeu. */
-const tileHash = (i: number): number => {
+export const tileHash = (i: number): number => {
   const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 };

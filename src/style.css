@@ -48,6 +48,14 @@ select, input[type=text], input[type=number] { background: #0f1a29; border: 1px 
 #tileinfo { position: absolute; bottom: 8px; left: 8px; right: 8px; pointer-events: none; font-size: 13px; color: var(--mute); text-shadow: 0 1px 2px #000; }
 #toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); background: #1f3b66; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 10px; display: none; z-index: 50; max-width: 80%; font-size: 14px; }
 #toast.bad { background: #5a2220; border-color: var(--bad); }
+#life { display: flex; flex-direction: column; height: 100%; }
+#life-top { display: flex; align-items: center; gap: 12px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+#life-stats { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+#life-wrap { position: relative; flex: 1; min-height: 0; background: #0b1119; }
+#life-map { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#life-help { position: absolute; top: 8px; left: 8px; background: rgba(15,23,34,.85); padding: 5px 10px; border-radius: 8px; font-size: 13px; }
+#life-actions { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+#life-actions button { font-size: 14px; padding: 8px 14px; }
 #side { width: 380px; display: flex; flex-direction: column; background: var(--panel); border-left: 1px solid var(--line); }
 #tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; border-bottom: 1px solid var(--line); }
 #tabs button { border-radius: 6px; padding: 4px 8px; font-size: 13px; background: transparent; border-color: transparent; }
