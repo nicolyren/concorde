@@ -51,9 +51,26 @@ export interface LifeResult {
 const ok = (msg = ''): LifeResult => ({ ok: true, msg });
 const ko = (msg: string): LifeResult => ({ ok: false, msg });
 
+export interface FoodItem {
+  id: string;
+  name: string;
+  icon: string;
+  cost: number;
+  /** Faim retirée par unité achetée. */
+  fill: number;
+}
+
+export const FOOD_ITEMS: FoodItem[] = [
+  { id: 'pain', name: 'Pain', icon: '🍞', cost: 3, fill: 15 },
+  { id: 'lait', name: 'Lait', icon: '🥛', cost: 2, fill: 10 },
+  { id: 'salade', name: 'Salade', icon: '🥗', cost: 4, fill: 15 },
+  { id: 'poulet', name: 'Poulet', icon: '🍗', cost: 8, fill: 35 },
+  { id: 'pizza', name: 'Pizza', icon: '🍕', cost: 10, fill: 40 },
+  { id: 'gateau', name: 'Gâteau', icon: '🍰', cost: 5, fill: 20 },
+];
+
 export const LIFE_W = 23;
 export const LIFE_H = 17;
-export const FOOD_COST = 12;
 export const WORK_PAY = 45;
 export const HUNGER_PER_WORK = 30;
 export const FATIGUE_PER_WORK = 25;
@@ -99,6 +116,26 @@ function roadPath(tiles: LifeTile[], W: number, H: number, from: number, to: num
   return path.reverse();
 }
 
+/**
+ * Ajoute de petites rues secondaires qui partent des routes principales, pour un vrai
+ * réseau de rues dans lequel se promener plutôt que de simples chemins entre bâtiments.
+ */
+function extendStreets(tiles: LifeTile[], W: number, H: number, rng: () => number) {
+  const base: number[] = [];
+  for (let i = 0; i < tiles.length; i++) if (tiles[i].road) base.push(i);
+  for (const start of base) {
+    if (rng() >= 0.45) continue;
+    let cur = start;
+    const len = 2 + Math.floor(rng() * 3);
+    for (let k = 0; k < len; k++) {
+      const nb = neighborsOf(cur, W, H).filter((j) => !tiles[j].road && !tiles[j].building && tiles[j].terrain !== 'water' && tiles[j].terrain !== 'mountain');
+      if (!nb.length) break;
+      cur = nb[Math.floor(rng() * nb.length)];
+      tiles[cur].road = true;
+    }
+  }
+}
+
 /** Un petit pays déjà parfaitement en place : on ne le construit pas, on y vit. */
 export function newLife(seed: number = Date.now() >>> 0): LifeState {
   const { tiles: genTiles, capital } = generateMap(seed, LIFE_W, LIFE_H);
@@ -130,6 +167,7 @@ export function newLife(seed: number = Date.now() >>> 0): LifeState {
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, job)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, shop, job)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, airport)) tiles[i].road = true;
+  extendStreets(tiles, LIFE_W, LIFE_H, rng);
   // Petites touches décoratives (fleurs, fontaine, bancs) autour de la maison : un pays
   // qu'on a envie d'habiter, sans impact sur le jeu.
   let decorLeft = 6;
@@ -166,6 +204,7 @@ function genVacationMap(seed: number): LifeMapData {
   tiles[capital].building = 'aeroport';
   tiles[plage].building = 'plage';
   for (const i of roadPath(tiles, VACATION_W, VACATION_H, capital, plage)) tiles[i].road = true;
+  extendStreets(tiles, VACATION_W, VACATION_H, rng);
   let decorLeft = 8;
   for (let i = 0; i < tiles.length && decorLeft > 0; i++) {
     const t = tiles[i];
@@ -217,12 +256,23 @@ function pushLog(s: LifeState, text: string) {
   if (s.log.length > 100) s.log.splice(0, s.log.length - 100);
 }
 
-export function buyFood(s: LifeState): LifeResult {
-  if (s.budget < FOOD_COST) return ko('Fonds insuffisants pour faire les courses.');
-  s.budget -= FOOD_COST;
-  s.hunger = 0;
-  pushLog(s, `Jour ${s.day} : courses au supermarché (-${FOOD_COST}€).`);
-  return ok(`🛒 Courses faites : -${FOOD_COST}€.`);
+/** Achète un panier de produits (id → quantité) : le prix et l'effet sur la faim dépendent de ce qu'on prend. */
+export function buyGroceries(s: LifeState, cart: Record<string, number>): LifeResult {
+  let cost = 0, fill = 0, items = 0;
+  for (const [id, qty] of Object.entries(cart)) {
+    if (qty <= 0) continue;
+    const item = FOOD_ITEMS.find((f) => f.id === id);
+    if (!item) continue;
+    cost += item.cost * qty;
+    fill += item.fill * qty;
+    items += qty;
+  }
+  if (items === 0) return ko('Panier vide.');
+  if (s.budget < cost) return ko(`Fonds insuffisants pour ce panier (${cost}€ requis).`);
+  s.budget -= cost;
+  s.hunger = Math.max(0, s.hunger - fill);
+  pushLog(s, `Jour ${s.day} : courses au supermarché (-${cost}€).`);
+  return ok(`🛒 Courses faites : -${cost}€.`);
 }
 
 export function goToWork(s: LifeState): LifeResult {

@@ -9,7 +9,7 @@ import type { GameState, Metrics, Zone } from './core/types';
 import { MapView, type Overlay } from './ui/mapview';
 import * as P from './ui/panels';
 import { deleteGame, listGames, loadGame, migrateLegacySave, newId, saveGame } from './ui/saves';
-import { buyFood, goToWork, goHome, buyCar, toggleDriving, travel, relaxAtBeach, newLife, FOOD_COST, WORK_PAY, CAR_COST, CAR_SPEED_MULT, FLIGHT_COST, type LifeState } from './core/life';
+import { buyGroceries, goToWork, goHome, buyCar, toggleDriving, travel, relaxAtBeach, newLife, FOOD_ITEMS, WORK_PAY, CAR_COST, CAR_SPEED_MULT, FLIGHT_COST, type LifeState } from './core/life';
 import { LifeView } from './ui/lifeview';
 import { loadLifeSave, saveLifeSave } from './ui/lifesave';
 
@@ -341,7 +341,7 @@ function renderLifeHud() {
   const nearAirport = life.airport >= 0 && lifeView.nearTile(life, life.airport);
   const nearPlage = life.kind === 'vacation' && lifeView.nearTile(life, life.plage);
   let html = '';
-  if (nearShop) html += `<button class="primary" id="life-buy">🛒 Acheter à manger (${FOOD_COST}€)</button>`;
+  if (nearShop) html += `<button class="primary" id="life-shop">🛒 Faire les courses</button>`;
   if (nearJob) html += `<button class="primary" id="life-work">💼 Aller travailler (+${WORK_PAY}€)</button>`;
   if (nearHome) {
     html += `<button class="primary" id="life-rest">🏠 Rentrer se reposer</button>`;
@@ -390,6 +390,32 @@ function startLifeLoop() {
   }
 }
 
+// ------------------------------------------------------------------ supermarché (choix des produits)
+let shopCart: Record<string, number> = {};
+function shopDialogHtml(): string {
+  let total = 0;
+  const rows = FOOD_ITEMS.map((f) => {
+    const qty = shopCart[f.id] ?? 0;
+    total += f.cost * qty;
+    return `<tr><td>${f.icon} ${f.name}</td><td>${f.cost}€</td><td>-${f.fill} faim</td>
+      <td class="row" style="justify-content:center;gap:6px">
+        <button class="small" data-dlg="cart-dec" data-id="${f.id}">−</button>
+        <b>${qty}</b>
+        <button class="small" data-dlg="cart-inc" data-id="${f.id}">+</button>
+      </td></tr>`;
+  }).join('');
+  return `<h2>🛒 Supermarché</h2>
+    <div class="mute">Choisissez ce que vous achetez : le prix dépend de ce que vous prenez.</div>
+    <table style="margin-top:8px"><tr><th></th><th>Prix</th><th>Effet</th><th>Quantité</th></tr>${rows}</table>
+    <div class="row" style="margin-top:10px"><span>Total</span><b id="cart-total">${total}€</b></div>
+    <div class="actions"><button data-dlg="close">Annuler</button><button class="primary" data-dlg="cart-pay">Payer</button></div>`;
+}
+function openShopDialog() {
+  shopCart = {};
+  dlg.innerHTML = shopDialogHtml();
+  if (!dlg.open) dlg.showModal();
+}
+
 $('home-new-life').addEventListener('click', () => {
   life = loadLifeSave() ?? newLife();
   showLife();
@@ -406,8 +432,8 @@ $('life-reset').addEventListener('click', () => {
 $('life-actions').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('button');
   if (!b || !life) return;
-  const r = b.id === 'life-buy' ? buyFood(life)
-    : b.id === 'life-work' ? goToWork(life)
+  if (b.id === 'life-shop') { openShopDialog(); return; }
+  const r = b.id === 'life-work' ? goToWork(life)
     : b.id === 'life-rest' ? goHome(life)
     : b.id === 'life-car' ? buyCar(life)
     : b.id === 'life-drive' ? toggleDriving(life)
@@ -673,6 +699,29 @@ dlg.addEventListener('click', (e) => {
       break;
     }
     case 'import': $('importfile').click(); break;
+    case 'cart-inc': {
+      const id = b.dataset.id!;
+      shopCart[id] = (shopCart[id] ?? 0) + 1;
+      dlg.innerHTML = shopDialogHtml();
+      break;
+    }
+    case 'cart-dec': {
+      const id = b.dataset.id!;
+      shopCart[id] = Math.max(0, (shopCart[id] ?? 0) - 1);
+      dlg.innerHTML = shopDialogHtml();
+      break;
+    }
+    case 'cart-pay': {
+      if (!life) break;
+      const r = buyGroceries(life, shopCart);
+      toast(r.msg, !r.ok);
+      if (r.ok) {
+        dlg.close();
+        saveLifeSave(life);
+        renderLifeHud();
+      }
+      break;
+    }
   }
 });
 $('importfile').addEventListener('change', async (e) => {

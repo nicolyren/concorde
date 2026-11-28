@@ -88,10 +88,10 @@ export class LifeView {
     if (dx || dy) this.walkBob += Math.hypot(dx, dy) * 0.35;
   }
 
-  /** Vrai si le personnage est à portée de main de la tuile donnée (maison, commerce, travail). */
+  /** Vrai si le personnage est entré dans le bâtiment (quasiment sur sa case), pas juste à proximité. */
   nearTile(s: LifeState, idx: number): boolean {
     const p = hexToPixel(idx, s.W, SIZE);
-    return Math.hypot(p.x - this.walkerX, p.y - this.walkerY) < SIZE * 1.7;
+    return Math.hypot(p.x - this.walkerX, p.y - this.walkerY) < SIZE * 0.85;
   }
 
   requestDraw() {
