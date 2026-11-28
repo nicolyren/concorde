@@ -3,7 +3,7 @@ import type { LifeState } from '../core/life';
 import { TERRAIN_SHADES, tileHash } from './mapview';
 
 const SIZE = 26;
-const BUILDING_ICON: Record<string, string> = { maison: '🏠', supermarche: '🛒', travail: '💼' };
+const BUILDING_ICON: Record<string, string> = { maison: '🏠', supermarche: '🛒', travail: '💼', aeroport: '✈️', plage: '🏖️' };
 
 export class LifeView {
   ctx: CanvasRenderingContext2D;
@@ -42,7 +42,11 @@ export class LifeView {
   }
 
   spawn(s: LifeState) {
-    const p = hexToPixel(s.home, s.W, SIZE);
+    this.teleportTo(s, s.home);
+  }
+
+  teleportTo(s: LifeState, idx: number) {
+    const p = hexToPixel(idx, s.W, SIZE);
     this.walkerX = p.x;
     this.walkerY = p.y;
     this.centerOnWorld(this.walkerX, this.walkerY);

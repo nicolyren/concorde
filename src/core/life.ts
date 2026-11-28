@@ -3,7 +3,7 @@ import { hexDist, neighborsOf } from './hex';
 import { makeRng } from './rng';
 import type { Terrain } from './types';
 
-export type LifeBuilding = 'maison' | 'supermarche' | 'travail';
+export type LifeBuilding = 'maison' | 'supermarche' | 'travail' | 'aeroport' | 'plage';
 
 export interface LifeTile {
   terrain: Terrain;
@@ -14,15 +14,25 @@ export interface LifeTile {
   decor: string | null;
 }
 
-export interface LifeState {
-  seed: number;
-  name: string;
+/** Une carte explorable : le pays natal, ou la destination de vacances accessible par avion. */
+export interface LifeMapData {
+  kind: 'home' | 'vacation';
   W: number;
   H: number;
   tiles: LifeTile[];
   home: number;
+  /** -1 si inexistant sur cette carte (ex. pas de commerce en vacances). */
   shop: number;
   job: number;
+  airport: number;
+  plage: number;
+}
+
+export interface LifeState extends LifeMapData {
+  seed: number;
+  name: string;
+  /** La carte où l'on ne se trouve pas actuellement (null si jamais visitée). */
+  away: LifeMapData | null;
   day: number;
   budget: number;
   /** 0 = repu, 100 = affamé. */
@@ -50,6 +60,9 @@ export const FATIGUE_PER_WORK = 25;
 export const CAR_COST = 300;
 export const CAR_SPEED_MULT = 2.2;
 export const START_BUDGET = 80;
+export const FLIGHT_COST = 30;
+const VACATION_W = 15;
+const VACATION_H = 11;
 const DECOR = ['🌷', '🌼', '🪻', '⛲', '🪑'];
 const NAME_PREFIX = ['Belle', 'Claire', 'Joli', 'Douce', 'Riante', 'Sereine', 'Verte', 'Haute', 'Bonne', 'Chère'];
 const NAME_ROOT = ['fontaine', 'val', 'mont', 'rive', 'bourg', 'champs', 'bois', 'lac', 'plaine', 'colline'];
@@ -100,19 +113,23 @@ export function newLife(seed: number = Date.now() >>> 0): LifeState {
     const j = Math.floor(rng() * (k + 1));
     [cand[k], cand[j]] = [cand[j], cand[k]];
   }
-  let shop = -1, job = -1;
+  let shop = -1, job = -1, airport = -1;
   for (const i of cand) {
     if (shop < 0) { shop = i; continue; }
-    if (job < 0 && hexDist(i, shop, LIFE_W) >= 3) { job = i; break; }
+    if (job < 0 && hexDist(i, shop, LIFE_W) >= 3) { job = i; continue; }
+    if (airport < 0 && hexDist(i, shop, LIFE_W) >= 3 && hexDist(i, job, LIFE_W) >= 3) { airport = i; break; }
   }
   if (shop < 0) shop = capital;
   if (job < 0) job = capital;
+  if (airport < 0) airport = capital;
   tiles[capital].building = 'maison';
   tiles[shop].building = 'supermarche';
   tiles[job].building = 'travail';
+  tiles[airport].building = 'aeroport';
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, shop)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, job)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, shop, job)) tiles[i].road = true;
+  for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, airport)) tiles[i].road = true;
   // Petites touches décoratives (fleurs, fontaine, bancs) autour de la maison : un pays
   // qu'on a envie d'habiter, sans impact sur le jeu.
   let decorLeft = 6;
@@ -126,10 +143,73 @@ export function newLife(seed: number = Date.now() >>> 0): LifeState {
     }
   }
   return {
-    seed, name, W: LIFE_W, H: LIFE_H, tiles, home: capital, shop, job,
+    seed, name, kind: 'home', W: LIFE_W, H: LIFE_H, tiles, home: capital, shop, job, airport, plage: -1, away: null,
     day: 1, budget: START_BUDGET, hunger: 10, fatigue: 5, hasCar: false, driving: false,
     log: [`Bienvenue à ${name}, votre nouveau pays !`],
   };
+}
+
+/** Une destination de vacances, accessible en avion : juste un aéroport et une plage pour se détendre. */
+function genVacationMap(seed: number): LifeMapData {
+  const { tiles: genTiles, capital } = generateMap(seed, VACATION_W, VACATION_H);
+  const tiles: LifeTile[] = genTiles.map((t) => ({ terrain: t.terrain, building: null, road: false, decor: null }));
+  const rng = makeRng((seed ^ 0xb7ac4) >>> 0);
+  const cand: number[] = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].terrain === 'plain' && hexDist(i, capital, VACATION_W) >= 2 && hexDist(i, capital, VACATION_W) <= 5) cand.push(i);
+  }
+  for (let k = cand.length - 1; k > 0; k--) {
+    const j = Math.floor(rng() * (k + 1));
+    [cand[k], cand[j]] = [cand[j], cand[k]];
+  }
+  const plage = cand.length ? cand[0] : capital;
+  tiles[capital].building = 'aeroport';
+  tiles[plage].building = 'plage';
+  for (const i of roadPath(tiles, VACATION_W, VACATION_H, capital, plage)) tiles[i].road = true;
+  let decorLeft = 8;
+  for (let i = 0; i < tiles.length && decorLeft > 0; i++) {
+    const t = tiles[i];
+    if (t.building || t.road || t.terrain !== 'plain') continue;
+    if (hexDist(i, plage, VACATION_W) > 3 && hexDist(i, capital, VACATION_W) > 3) continue;
+    if (rng() < 0.35) {
+      t.decor = DECOR[Math.floor(rng() * DECOR.length)];
+      decorLeft--;
+    }
+  }
+  return { kind: 'vacation', W: VACATION_W, H: VACATION_H, tiles, home: capital, shop: -1, job: -1, airport: capital, plage };
+}
+
+function snapshotMap(s: LifeState): LifeMapData {
+  return { kind: s.kind, W: s.W, H: s.H, tiles: s.tiles, home: s.home, shop: s.shop, job: s.job, airport: s.airport, plage: s.plage };
+}
+
+/** Prend l'avion à l'aéroport : part en vacances, ou rentre si on y est déjà. */
+export function travel(s: LifeState): LifeResult {
+  if (s.kind === 'home') {
+    if (s.budget < FLIGHT_COST) return ko(`Fonds insuffisants pour le billet d’avion (${FLIGHT_COST}€).`);
+    s.budget -= FLIGHT_COST;
+    const dest = s.away && s.away.kind === 'vacation' ? s.away : genVacationMap(s.seed);
+    const home = snapshotMap(s);
+    Object.assign(s, dest);
+    s.away = home;
+    s.fatigue = Math.min(100, s.fatigue + 10);
+    pushLog(s, `Jour ${s.day} : départ en vacances (-${FLIGHT_COST}€).`);
+    return ok(`✈️ Vous voilà en vacances ! -${FLIGHT_COST}€.`);
+  }
+  const home = s.away;
+  if (!home) return ko('Impossible de rentrer : destination introuvable.');
+  const vacation = snapshotMap(s);
+  Object.assign(s, home);
+  s.away = vacation;
+  pushLog(s, `Jour ${s.day} : retour de vacances.`);
+  return ok('✈️ De retour chez vous.');
+}
+
+export function relaxAtBeach(s: LifeState): LifeResult {
+  if (s.kind !== 'vacation') return ko('Pas de plage par ici.');
+  s.fatigue = 0;
+  pushLog(s, `Jour ${s.day} : après-midi à la plage.`);
+  return ok('🏖️ Vous vous détendez à la plage.');
 }
 
 function pushLog(s: LifeState, text: string) {
@@ -189,6 +269,10 @@ export function deserializeLife(raw: string): LifeState | null {
     if (s.hasCar === undefined) s.hasCar = false;
     if (s.driving === undefined) s.driving = false;
     if (!s.name) s.name = 'Pays parfait';
+    if (!s.kind) s.kind = 'home';
+    if (s.airport === undefined) s.airport = -1;
+    if (s.plage === undefined) s.plage = -1;
+    if (s.away === undefined) s.away = null;
     for (const t of s.tiles) {
       if (t.road === undefined) t.road = false;
       if (t.decor === undefined) t.decor = null;

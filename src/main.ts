@@ -9,7 +9,7 @@ import type { GameState, Metrics, Zone } from './core/types';
 import { MapView, type Overlay } from './ui/mapview';
 import * as P from './ui/panels';
 import { deleteGame, listGames, loadGame, migrateLegacySave, newId, saveGame } from './ui/saves';
-import { buyFood, goToWork, goHome, buyCar, toggleDriving, newLife, FOOD_COST, WORK_PAY, CAR_COST, CAR_SPEED_MULT, type LifeState } from './core/life';
+import { buyFood, goToWork, goHome, buyCar, toggleDriving, travel, relaxAtBeach, newLife, FOOD_COST, WORK_PAY, CAR_COST, CAR_SPEED_MULT, FLIGHT_COST, type LifeState } from './core/life';
 import { LifeView } from './ui/lifeview';
 import { loadLifeSave, saveLifeSave } from './ui/lifesave';
 
@@ -325,7 +325,7 @@ let lifeLast = 0;
 
 function renderLifeHud() {
   if (!life) return;
-  $('life-name').textContent = life.name;
+  $('life-name').textContent = life.kind === 'vacation' ? `${life.name} (en vacances)` : life.name;
   const hungry = life.hunger >= 70;
   const tired = life.fatigue >= 70;
   $('life-stats').innerHTML = `
@@ -334,9 +334,12 @@ function renderLifeHud() {
     <span class="chip ${hungry ? 'bad' : ''}">🍽️ Faim <b>${life.hunger}</b>/100</span>
     <span class="chip ${tired ? 'bad' : ''}">😴 Fatigue <b>${life.fatigue}</b>/100</span>
     ${life.hasCar ? `<span class="chip">${life.driving ? '🚗 En voiture' : '🚶 À pied'}</span>` : ''}`;
-  const nearShop = lifeView.nearTile(life, life.shop);
-  const nearJob = lifeView.nearTile(life, life.job);
-  const nearHome = lifeView.nearTile(life, life.home);
+  const atHome = life.kind === 'home';
+  const nearShop = atHome && lifeView.nearTile(life, life.shop);
+  const nearJob = atHome && lifeView.nearTile(life, life.job);
+  const nearHome = atHome && lifeView.nearTile(life, life.home);
+  const nearAirport = life.airport >= 0 && lifeView.nearTile(life, life.airport);
+  const nearPlage = life.kind === 'vacation' && lifeView.nearTile(life, life.plage);
   let html = '';
   if (nearShop) html += `<button class="primary" id="life-buy">🛒 Acheter à manger (${FOOD_COST}€)</button>`;
   if (nearJob) html += `<button class="primary" id="life-work">💼 Aller travailler (+${WORK_PAY}€)</button>`;
@@ -344,7 +347,13 @@ function renderLifeHud() {
     html += `<button class="primary" id="life-rest">🏠 Rentrer se reposer</button>`;
     if (!life.hasCar) html += `<button id="life-car">🚗 Acheter une voiture (${CAR_COST}€)</button>`;
   }
-  if (life.hasCar) {
+  if (nearPlage) html += `<button class="primary" id="life-beach">🏖️ Se détendre à la plage</button>`;
+  if (nearAirport) {
+    html += life.kind === 'home'
+      ? `<button id="life-fly">✈️ Partir en vacances (${FLIGHT_COST}€)</button>`
+      : `<button id="life-fly">✈️ Rentrer chez soi</button>`;
+  }
+  if (atHome && life.hasCar) {
     html += life.driving
       ? `<button id="life-drive">🚶 Descendre de voiture</button>`
       : nearHome ? `<button id="life-drive">🚗 Prendre la voiture</button>` : '';
@@ -395,10 +404,16 @@ $('life-actions').addEventListener('click', (e) => {
     : b.id === 'life-rest' ? goHome(life)
     : b.id === 'life-car' ? buyCar(life)
     : b.id === 'life-drive' ? toggleDriving(life)
+    : b.id === 'life-beach' ? relaxAtBeach(life)
+    : b.id === 'life-fly' ? travel(life)
     : null;
   if (r) {
     toast(r.msg, !r.ok);
     if (r.ok) {
+      if (b.id === 'life-fly') {
+        lifeView.state = life;
+        lifeView.teleportTo(life, life.airport);
+      }
       saveLifeSave(life);
       renderLifeHud();
     }
