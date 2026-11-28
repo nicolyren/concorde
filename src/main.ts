@@ -273,6 +273,7 @@ const walkPressed = new Set<string>();
 let walkRaf = 0;
 let walkLast = 0;
 let toolBeforeWalk = 'inspect';
+let lastEntered = -1;
 
 function walkTick(ts: number) {
   walkRaf = 0;
@@ -290,6 +291,16 @@ function walkTick(ts: number) {
     view.stepWalker(dx * step, dy * step, game);
     view.centerOnWorld(view.walkerX, view.walkerY);
     view.requestDraw();
+    const entered = view.enteredBuilding(game);
+    if (entered !== lastEntered) {
+      lastEntered = entered;
+      if (entered >= 0) {
+        const def = B[game.tiles[entered].building!];
+        $('tileinfo').textContent = `Vous entrez dans : ${def.icon} ${def.name} — ${def.desc}`;
+      } else {
+        $('tileinfo').textContent = '';
+      }
+    }
   }
   walkRaf = requestAnimationFrame(walkTick);
 }
@@ -302,6 +313,8 @@ function startWalkLoop() {
 function stopWalking() {
   view.stopWalk();
   walkPressed.clear();
+  lastEntered = -1;
+  $('tileinfo').textContent = '';
   $('btn-walk').classList.remove('active');
   setTool(toolBeforeWalk);
 }
@@ -311,6 +324,11 @@ $('btn-walk').addEventListener('click', () => {
   setTool('inspect');
   view.startWalk(game);
   $('btn-walk').classList.add('active');
+  lastEntered = view.enteredBuilding(game);
+  if (lastEntered >= 0) {
+    const def = B[game.tiles[lastEntered].building!];
+    $('tileinfo').textContent = `Vous entrez dans : ${def.icon} ${def.name} — ${def.desc}`;
+  }
 });
 
 // ------------------------------------------------------------------ mode « pays parfait » (vie quotidienne)

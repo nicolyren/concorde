@@ -132,6 +132,14 @@ export class MapView {
     if (dx || dy) this.walkBob += Math.hypot(dx, dy) * 0.35;
   }
 
+  /** Bâtiment (construit) sur lequel le personnage se trouve actuellement, ou -1. */
+  enteredBuilding(s: GameState): number {
+    const idx = pixelToHex(this.walkerX, this.walkerY, SIZE, s.W, s.H);
+    if (idx < 0) return -1;
+    const t = s.tiles[idx];
+    return t.building && t.build === 0 ? idx : -1;
+  }
+
   tileAt(sx: number, sy: number): number {
     if (!this.state) return -1;
     const wx = (sx - this.ox) / this.z;
@@ -408,17 +416,22 @@ export class MapView {
 
     // --- petit personnage (mode balade)
     if (this.walking) {
+      const entered = this.enteredBuilding(s);
+      if (entered >= 0) mark(entered, '#2ecc71', 3);
       const wx = this.walkerX * z + this.ox;
       const wy = this.walkerY * z + this.oy;
       const bob = Math.sin(this.walkBob) * r * 0.08;
+      // Entré dans un bâtiment : le personnage s'efface un peu, comme s'il était à l'intérieur.
+      ctx.globalAlpha = entered >= 0 ? 0.45 : 1;
       ctx.beginPath();
       ctx.ellipse(wx, wy + r * 0.55, r * 0.38, r * 0.14, 0, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(0,0,0,.3)';
       ctx.fill();
-      ctx.font = `${r * 1.15}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
+      ctx.font = `${r * (entered >= 0 ? 0.9 : 1.15)}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('🧑', wx, wy + bob);
+      ctx.globalAlpha = 1;
     }
     void SQ3;
   }
