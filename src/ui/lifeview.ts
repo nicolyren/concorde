@@ -170,6 +170,11 @@ export class LifeView {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('🌲', sp.x, sp.y);
+      } else if (t.decor && !t.building) {
+        ctx.font = `${r * 0.65}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(t.decor, sp.x, sp.y);
       }
       ctx.strokeStyle = 'rgba(255,255,255,.55)';
       ctx.lineWidth = Math.max(1, r * 0.05);

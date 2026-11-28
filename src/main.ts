@@ -325,6 +325,7 @@ let lifeLast = 0;
 
 function renderLifeHud() {
   if (!life) return;
+  $('life-name').textContent = life.name;
   const hungry = life.hunger >= 70;
   const tired = life.fatigue >= 70;
   $('life-stats').innerHTML = `
@@ -383,7 +384,7 @@ function startLifeLoop() {
 $('home-new-life').addEventListener('click', () => {
   life = loadLifeSave() ?? newLife();
   showLife();
-  toast('Bienvenue ! Déplacez-vous pour aller faire vos courses, travailler, ou rentrer vous reposer.');
+  toast(`Bienvenue à ${life.name} ! Déplacez-vous pour aller faire vos courses, travailler, ou rentrer vous reposer.`);
 });
 $('life-quit').addEventListener('click', quitLife);
 $('life-actions').addEventListener('click', (e) => {

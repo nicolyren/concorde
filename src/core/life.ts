@@ -10,10 +10,13 @@ export interface LifeTile {
   building: LifeBuilding | null;
   /** Route/trottoir : réservé aux voitures en mode conduite, libre pour les piétons. */
   road: boolean;
+  /** Décor purement visuel (fleurs, fontaine, banc…), sans effet de jeu. */
+  decor: string | null;
 }
 
 export interface LifeState {
   seed: number;
+  name: string;
   W: number;
   H: number;
   tiles: LifeTile[];
@@ -46,7 +49,16 @@ export const HUNGER_PER_WORK = 30;
 export const FATIGUE_PER_WORK = 25;
 export const CAR_COST = 300;
 export const CAR_SPEED_MULT = 2.2;
-export const START_BUDGET = 60;
+export const START_BUDGET = 80;
+const DECOR = ['🌷', '🌼', '🪻', '⛲', '🪑'];
+const NAME_PREFIX = ['Belle', 'Claire', 'Joli', 'Douce', 'Riante', 'Sereine', 'Verte', 'Haute', 'Bonne', 'Chère'];
+const NAME_ROOT = ['fontaine', 'val', 'mont', 'rive', 'bourg', 'champs', 'bois', 'lac', 'plaine', 'colline'];
+
+function pickName(rng: () => number): string {
+  const p = NAME_PREFIX[Math.floor(rng() * NAME_PREFIX.length)];
+  const r = NAME_ROOT[Math.floor(rng() * NAME_ROOT.length)];
+  return p + r;
+}
 
 /** Plus court chemin (en tuiles franchissables) entre deux cases, pour tracer les routes. */
 function roadPath(tiles: LifeTile[], W: number, H: number, from: number, to: number): number[] {
@@ -77,8 +89,9 @@ function roadPath(tiles: LifeTile[], W: number, H: number, from: number, to: num
 /** Un petit pays déjà parfaitement en place : on ne le construit pas, on y vit. */
 export function newLife(seed: number = Date.now() >>> 0): LifeState {
   const { tiles: genTiles, capital } = generateMap(seed, LIFE_W, LIFE_H);
-  const tiles: LifeTile[] = genTiles.map((t) => ({ terrain: t.terrain, building: null, road: false }));
+  const tiles: LifeTile[] = genTiles.map((t) => ({ terrain: t.terrain, building: null, road: false, decor: null }));
   const rng = makeRng((seed ^ 0x51ed9a3) >>> 0);
+  const name = pickName(rng);
   const cand: number[] = [];
   for (let i = 0; i < tiles.length; i++) {
     if (tiles[i].terrain === 'plain' && hexDist(i, capital, LIFE_W) >= 2 && hexDist(i, capital, LIFE_W) <= 6) cand.push(i);
@@ -100,10 +113,22 @@ export function newLife(seed: number = Date.now() >>> 0): LifeState {
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, shop)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, job)) tiles[i].road = true;
   for (const i of roadPath(tiles, LIFE_W, LIFE_H, shop, job)) tiles[i].road = true;
+  // Petites touches décoratives (fleurs, fontaine, bancs) autour de la maison : un pays
+  // qu'on a envie d'habiter, sans impact sur le jeu.
+  let decorLeft = 6;
+  for (let i = 0; i < tiles.length && decorLeft > 0; i++) {
+    const t = tiles[i];
+    if (t.building || t.road || t.terrain !== 'plain') continue;
+    if (hexDist(i, capital, LIFE_W) > 3) continue;
+    if (rng() < 0.3) {
+      t.decor = DECOR[Math.floor(rng() * DECOR.length)];
+      decorLeft--;
+    }
+  }
   return {
-    seed, W: LIFE_W, H: LIFE_H, tiles, home: capital, shop, job,
-    day: 1, budget: START_BUDGET, hunger: 20, fatigue: 10, hasCar: false, driving: false,
-    log: ['Bienvenue dans votre nouvelle vie !'],
+    seed, name, W: LIFE_W, H: LIFE_H, tiles, home: capital, shop, job,
+    day: 1, budget: START_BUDGET, hunger: 10, fatigue: 5, hasCar: false, driving: false,
+    log: [`Bienvenue à ${name}, votre nouveau pays !`],
   };
 }
 
@@ -163,7 +188,11 @@ export function deserializeLife(raw: string): LifeState | null {
     if (s.fatigue === undefined) s.fatigue = 0;
     if (s.hasCar === undefined) s.hasCar = false;
     if (s.driving === undefined) s.driving = false;
-    for (const t of s.tiles) if (t.road === undefined) t.road = false;
+    if (!s.name) s.name = 'Pays parfait';
+    for (const t of s.tiles) {
+      if (t.road === undefined) t.road = false;
+      if (t.decor === undefined) t.decor = null;
+    }
     return s;
   } catch {
     return null;
