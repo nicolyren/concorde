@@ -7,12 +7,18 @@ import type { GameState, Terrain } from '../core/types';
 
 export type Overlay = 'normal' | 'zones' | 'districts' | 'serve' | 'pollution';
 
-const TERRAIN_FILL: Record<Terrain, string> = {
-  water: '#4f9fd1',
-  plain: '#a9cf7c',
-  forest: '#4f9d5d',
-  hill: '#cdb784',
-  mountain: '#8e9096',
+/** Quelques nuances par terrain (au lieu d'un aplat unique) pour casser l'effet « damier » trop régulier. */
+const TERRAIN_SHADES: Record<Terrain, string[]> = {
+  water: ['#4a98ca', '#4f9fd1', '#56a7d8'],
+  plain: ['#a3ca74', '#a9cf7c', '#b2d587'],
+  forest: ['#468f55', '#4f9d5d', '#5aa366'],
+  hill: ['#c7b07c', '#cdb784', '#d4c090'],
+  mountain: ['#878992', '#8e9096', '#95979d'],
+};
+/** Hachage déterministe (0..1) d'un index de tuile, pour varier le rendu sans état ni aléa de jeu. */
+const tileHash = (i: number): number => {
+  const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
 };
 const DISTRICT_FILL = ['#ffffff', '#e57373', '#ffb74d', '#fff176', '#81c784', '#4fc3f7', '#ba68c8'];
 const SIZE = 22;
@@ -151,9 +157,25 @@ export class MapView {
       const sp = screen(i);
       if (sp.x < -margin || sp.y < -margin || sp.x > this.w + margin || sp.y > this.h + margin) continue;
       const t = s.tiles[i];
+      const shades = TERRAIN_SHADES[t.terrain];
       this.hexPath(sp.x, sp.y, r * 1.005);
-      ctx.fillStyle = TERRAIN_FILL[t.terrain];
+      ctx.fillStyle = shades[Math.floor(tileHash(i) * shades.length)];
       ctx.fill();
+      if (t.terrain === 'hill' || t.terrain === 'mountain' || t.terrain === 'water') {
+        // Dégradé fixe (lumière en haut à gauche) pour suggérer le relief des hauteurs
+        // et la profondeur de l'eau, plutôt qu'un aplat uniforme.
+        const grad = ctx.createLinearGradient(sp.x - r, sp.y - r, sp.x + r, sp.y + r);
+        if (t.terrain === 'water') {
+          grad.addColorStop(0, 'rgba(255,255,255,.14)');
+          grad.addColorStop(1, 'rgba(0,25,55,.12)');
+        } else {
+          grad.addColorStop(0, 'rgba(255,255,255,.2)');
+          grad.addColorStop(1, 'rgba(0,0,0,.18)');
+        }
+        this.hexPath(sp.x, sp.y, r * 1.005);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
       if (t.terrain === 'mountain') {
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.font = `${r * 0.9}px system-ui`;
