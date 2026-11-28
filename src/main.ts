@@ -396,6 +396,13 @@ $('home-new-life').addEventListener('click', () => {
   toast(`Bienvenue à ${life.name} ! Déplacez-vous pour aller faire vos courses, travailler, ou rentrer vous reposer.`);
 });
 $('life-quit').addEventListener('click', quitLife);
+$('life-reset').addEventListener('click', () => {
+  if (!confirm('Recommencer avec un nouveau pays ? La progression actuelle de ce mode sera perdue.')) return;
+  life = newLife();
+  saveLifeSave(life);
+  showLife();
+  toast(`Nouveau pays : ${life.name} !`);
+});
 $('life-actions').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('button');
   if (!b || !life) return;
