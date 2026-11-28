@@ -66,6 +66,11 @@ export class MapView {
   w = 0;
   h = 0;
   private raf = 0;
+  /** Mode « balade » : un petit personnage qu'on déplace librement au clavier. */
+  walking = false;
+  walkerX = 0;
+  walkerY = 0;
+  private walkBob = 0;
 
   constructor(public canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
@@ -88,6 +93,40 @@ export class MapView {
     this.ox = this.w / 2 - p.x * this.z;
     this.oy = this.h / 2 - p.y * this.z;
     this.requestDraw();
+  }
+
+  centerOnWorld(x: number, y: number) {
+    this.ox = this.w / 2 - x * this.z;
+    this.oy = this.h / 2 - y * this.z;
+  }
+
+  startWalk(s: GameState) {
+    this.walking = true;
+    const p = hexToPixel(s.capital, s.W, SIZE);
+    this.walkerX = p.x;
+    this.walkerY = p.y;
+    this.centerOnWorld(this.walkerX, this.walkerY);
+    this.requestDraw();
+  }
+
+  stopWalk() {
+    this.walking = false;
+    this.requestDraw();
+  }
+
+  /** Déplace le personnage en espace monde ; bloqué par l'eau, les montagnes et le bord de la carte. */
+  stepWalker(dx: number, dy: number, s: GameState) {
+    const passable = (x: number, y: number) => {
+      const idx = pixelToHex(x, y, SIZE, s.W, s.H);
+      if (idx < 0) return false;
+      const t = s.tiles[idx].terrain;
+      return t !== 'water' && t !== 'mountain';
+    };
+    const nx = this.walkerX + dx;
+    if (passable(nx, this.walkerY)) this.walkerX = nx;
+    const ny = this.walkerY + dy;
+    if (passable(this.walkerX, ny)) this.walkerY = ny;
+    if (dx || dy) this.walkBob += Math.hypot(dx, dy) * 0.35;
   }
 
   tileAt(sx: number, sy: number): number {
@@ -352,6 +391,21 @@ export class MapView {
     };
     mark(this.selected, '#ffd54f', 3);
     mark(this.hover, '#ffffff', 2);
+
+    // --- petit personnage (mode balade)
+    if (this.walking) {
+      const wx = this.walkerX * z + this.ox;
+      const wy = this.walkerY * z + this.oy;
+      const bob = Math.sin(this.walkBob) * r * 0.08;
+      ctx.beginPath();
+      ctx.ellipse(wx, wy + r * 0.55, r * 0.38, r * 0.14, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,.3)';
+      ctx.fill();
+      ctx.font = `${r * 1.15}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧑', wx, wy + bob);
+    }
     void SQ3;
   }
 

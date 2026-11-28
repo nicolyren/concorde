@@ -43,6 +43,7 @@ select, input[type=text], input[type=number] { background: #0f1a29; border: 1px 
 #mapwrap { position: relative; flex: 1; min-width: 0; background: #0b1119; }
 #map { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
 #maptools { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; align-items: center; background: rgba(15,23,34,.85); padding: 5px 8px; border-radius: 8px; font-size: 13px; }
+#btn-walk.active { background: #234a86; border-color: var(--accent); }
 #tip { position: absolute; pointer-events: none; background: rgba(10,16,26,.95); border: 1px solid var(--line); padding: 6px 8px; border-radius: 8px; font-size: 12px; max-width: 260px; display: none; z-index: 5; line-height: 1.35; }
 #tileinfo { position: absolute; bottom: 8px; left: 8px; right: 8px; pointer-events: none; font-size: 13px; color: var(--mute); text-shadow: 0 1px 2px #000; }
 #toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); background: #1f3b66; border: 1px solid var(--accent); padding: 8px 14px; border-radius: 10px; display: none; z-index: 50; max-width: 80%; font-size: 14px; }

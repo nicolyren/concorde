@@ -232,6 +232,56 @@ $('overlay').addEventListener('change', (e) => {
 });
 $('btn-center').addEventListener('click', () => view.centerOn(game, game.capital));
 
+// ------------------------------------------------------------------ mode balade
+const WALK_KEYS: Record<string, [number, number]> = {
+  arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0],
+  w: [0, -1], z: [0, -1], s: [0, 1], a: [-1, 0], q: [-1, 0], d: [1, 0],
+};
+const WALK_SPEED = 170; // px/s en espace monde, indépendant du zoom
+const walkPressed = new Set<string>();
+let walkRaf = 0;
+let walkLast = 0;
+let toolBeforeWalk = 'inspect';
+
+function walkTick(ts: number) {
+  walkRaf = 0;
+  if (!view.walking) return;
+  let dx = 0, dy = 0;
+  for (const k of walkPressed) {
+    const v = WALK_KEYS[k];
+    if (v) { dx += v[0]; dy += v[1]; }
+  }
+  const dt = Math.min(0.05, (ts - walkLast) / 1000);
+  walkLast = ts;
+  if (dx || dy) {
+    const len = Math.hypot(dx, dy);
+    const step = (WALK_SPEED * dt) / len;
+    view.stepWalker(dx * step, dy * step, game);
+    view.centerOnWorld(view.walkerX, view.walkerY);
+    view.requestDraw();
+  }
+  walkRaf = requestAnimationFrame(walkTick);
+}
+function startWalkLoop() {
+  if (!walkRaf) {
+    walkLast = performance.now();
+    walkRaf = requestAnimationFrame(walkTick);
+  }
+}
+function stopWalking() {
+  view.stopWalk();
+  walkPressed.clear();
+  $('btn-walk').classList.remove('active');
+  setTool(toolBeforeWalk);
+}
+$('btn-walk').addEventListener('click', () => {
+  if (view.walking) { stopWalking(); return; }
+  toolBeforeWalk = tool;
+  setTool('inspect');
+  view.startWalk(game);
+  $('btn-walk').classList.add('active');
+});
+
 // ------------------------------------------------------------------ tour suivant
 function nextTurn() {
   if (dlg.open || !appActive) return;
@@ -518,10 +568,23 @@ $('home-list').addEventListener('click', (e) => {
 window.addEventListener('keydown', (e) => {
   const tg = e.target as HTMLElement;
   if (dlg.open || !appActive || tg.tagName === 'INPUT' || tg.tagName === 'SELECT' || tg.tagName === 'TEXTAREA') return;
+  const key = e.key.toLowerCase();
+  if (view.walking && WALK_KEYS[key]) {
+    e.preventDefault();
+    walkPressed.add(key);
+    startWalkLoop();
+    return;
+  }
   if (e.code === 'Space') {
     e.preventDefault();
     nextTurn();
-  } else if (e.key === 'Escape') setTool('inspect');
+  } else if (e.key === 'Escape') {
+    if (view.walking) stopWalking();
+    else setTool('inspect');
+  }
+});
+window.addEventListener('keyup', (e) => {
+  walkPressed.delete(e.key.toLowerCase());
 });
 
 // ------------------------------------------------------------------ démarrage
