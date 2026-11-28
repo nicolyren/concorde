@@ -115,7 +115,10 @@ export class LifeView {
     const s = this.state;
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#0b1119';
+    const sky = ctx.createLinearGradient(0, 0, 0, this.h);
+    sky.addColorStop(0, '#6ec6f1');
+    sky.addColorStop(1, '#bfe9fb');
+    ctx.fillStyle = sky;
     ctx.fillRect(0, 0, this.w, this.h);
     if (!s) return;
     const z = this.z;
@@ -131,17 +134,21 @@ export class LifeView {
       if (sp.x < -margin || sp.y < -margin || sp.x > this.w + margin || sp.y > this.h + margin) continue;
       const t = s.tiles[i];
       const shades = TERRAIN_SHADES[t.terrain];
+      // Petite ombre portée + vernis brillant, même traitement « bonbon » que la carte principale.
+      this.hexPath(sp.x + r * 0.07, sp.y + r * 0.1, r * 1.005);
+      ctx.fillStyle = 'rgba(20,60,40,.16)';
+      ctx.fill();
       this.hexPath(sp.x, sp.y, r * 1.005);
       ctx.fillStyle = shades[Math.floor(tileHash(i) * shades.length)];
       ctx.fill();
-      if (t.terrain === 'hill' || t.terrain === 'mountain' || t.terrain === 'water') {
+      {
         const grad = ctx.createLinearGradient(sp.x - r, sp.y - r, sp.x + r, sp.y + r);
         if (t.terrain === 'water') {
-          grad.addColorStop(0, 'rgba(255,255,255,.14)');
-          grad.addColorStop(1, 'rgba(0,25,55,.12)');
+          grad.addColorStop(0, 'rgba(255,255,255,.4)');
+          grad.addColorStop(1, 'rgba(0,60,110,.14)');
         } else {
-          grad.addColorStop(0, 'rgba(255,255,255,.2)');
-          grad.addColorStop(1, 'rgba(0,0,0,.18)');
+          grad.addColorStop(0, 'rgba(255,255,255,.32)');
+          grad.addColorStop(1, 'rgba(0,0,0,.12)');
         }
         this.hexPath(sp.x, sp.y, r * 1.005);
         ctx.fillStyle = grad;
@@ -164,7 +171,11 @@ export class LifeView {
         ctx.textBaseline = 'middle';
         ctx.fillText('🌲', sp.x, sp.y);
       }
-      ctx.strokeStyle = 'rgba(0,0,0,.14)';
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = Math.max(1, r * 0.05);
+      this.hexPath(sp.x, sp.y, r * 0.94);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(20,50,30,.18)';
       ctx.lineWidth = 1;
       this.hexPath(sp.x, sp.y, r);
       ctx.stroke();
