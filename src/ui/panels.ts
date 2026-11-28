@@ -1,7 +1,7 @@
 import {
   B, BUILDINGS, CAT_LABEL, CAT_ORDER, CUSTOM_EFFECT_LABEL, DISTRICT_NAMES, FUNDING_LABEL, INFRA, ISSUES, LEVEL_ASSEMBLY,
   LEVEL_EXEC, LEVEL_NAME, LEVEL_POP_GOAL, LEVEL_SEATS, LEVEL_WB_GOAL, P, POLICIES, PLATFORMS, PARK_CAT_ORDER, PARK_CAT_LABEL,
-  BUS_COST, TRAIN_COST, BUS_UPKEEP, TRAIN_UPKEEP,
+  BUS_COST, TRAIN_COST, PLANE_COST, BUS_UPKEEP, TRAIN_UPKEEP, PLANE_UPKEEP,
   type BuildingDef, type CustomEffect,
 } from '../core/content';
 import { ZONE_COLOR, ZONE_LABEL, buildCost, highwayAllowed } from '../core/actions';
@@ -219,7 +219,7 @@ export function panelBudget(s: GameState, m: Metrics): string {
 
   if (!s.park) {
     h += `<div class="card"><h3>Flotte de véhicules</h3>
-      <div class="mute">Les dépôts bus/tram et les gares ne transportent personne sans véhicules achetés.</div>
+      <div class="mute">Les dépôts bus/tram, les gares et les aéroports ne transportent personne sans véhicules achetés.</div>
       <table style="margin-top:6px">
         <tr><td>🚌 Bus/tram</td><td>${s.fleet.buses} / ${m.busesNeeded}</td><td class="${m.busFactor < 1 && m.busesNeeded > 0 ? 'neg' : 'pos'}">${Math.round(m.busFactor * 100)} % en service</td>
           <td><button class="small" data-act="buy-vehicle" data-kind="bus" ${dis}>+1 (${BUS_COST} k€)</button></td>
@@ -227,8 +227,11 @@ export function panelBudget(s: GameState, m: Metrics): string {
         <tr><td>🚆 Trains</td><td>${s.fleet.trains} / ${m.trainsNeeded}</td><td class="${m.trainFactor < 1 && m.trainsNeeded > 0 ? 'neg' : 'pos'}">${Math.round(m.trainFactor * 100)} % en service</td>
           <td><button class="small" data-act="buy-vehicle" data-kind="train" ${dis}>+1 (${TRAIN_COST} k€)</button></td>
           <td><button class="small" data-act="sell-vehicle" data-kind="train" ${s.fleet.trains <= 0 ? 'disabled' : dis}>−1 (${Math.round(TRAIN_COST * 0.5)} k€)</button></td></tr>
+        <tr><td>✈️ Avions</td><td>${s.fleet.planes} / ${m.planesNeeded}</td><td class="${m.planeFactor < 1 && m.planesNeeded > 0 ? 'neg' : 'pos'}">${Math.round(m.planeFactor * 100)} % en service</td>
+          <td><button class="small" data-act="buy-vehicle" data-kind="plane" ${dis}>+1 (${PLANE_COST} k€)</button></td>
+          <td><button class="small" data-act="sell-vehicle" data-kind="plane" ${s.fleet.planes <= 0 ? 'disabled' : dis}>−1 (${Math.round(PLANE_COST * 0.5)} k€)</button></td></tr>
       </table>
-      <div class="mute" style="margin-top:6px">Entretien : ${BUS_UPKEEP} k€/bus·tram et ${TRAIN_UPKEEP} k€/train par trimestre. Environ 10 bus/trams par dépôt, 2 trains par ligne (2 gares reliées).</div></div>`;
+      <div class="mute" style="margin-top:6px">Entretien : ${BUS_UPKEEP} k€/bus·tram, ${TRAIN_UPKEEP} k€/train et ${PLANE_UPKEEP} k€/avion par trimestre. Environ 10 bus/trams par dépôt, 2 trains par ligne (2 gares reliées), 3 avions par aéroport.</div></div>`;
   }
 
   h += `<div class="card"><h3>Financement des services</h3>`;

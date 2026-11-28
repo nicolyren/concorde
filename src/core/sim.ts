@@ -1,6 +1,6 @@
 import {
   B, FUNDING_KEY, P, DISTRICT_NAMES, LEVEL_POP_GOAL, LEVEL_WB_GOAL,
-  BUS_UPKEEP, TRAIN_UPKEEP, BUSES_PER_DEPOT, TRAINS_PER_LINE, type BuildingDef,
+  BUS_UPKEEP, TRAIN_UPKEEP, PLANE_UPKEEP, BUSES_PER_DEPOT, TRAINS_PER_LINE, PLANES_PER_AIRPORT, type BuildingDef,
 } from './content';
 import { neighborsOf } from './hex';
 import { rand, gauss } from './rng';
@@ -129,7 +129,8 @@ export function computeMetrics(s: GameState): Metrics {
   let housingCap = 0, j0 = 0, j1 = 0;
   let eduP = 0, eduS = 0, eduH = 0, health = 0, safety = 0, cult = 0;
   let busTransit = 0, gareTransit = 0, otherTransit = 0;
-  let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, econBonus = 0, banks = 0, airports = 0;
+  let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, banks = 0, airports = 0;
+  let otherEconBonus = 0, airportEconBonus = 0;
   let thrillWeighted = 0;
   const rideTypes = new Set<string>();
   let servedCount = 0, totalBuildings = 0;
@@ -190,7 +191,10 @@ export function computeMetrics(s: GameState): Metrics {
     if (def.green) green += def.green;
     if (def.absorb) absorb += def.absorb;
     if (def.credit) credit += def.credit;
-    if (def.econBonus) econBonus += def.econBonus;
+    if (def.econBonus) {
+      if (def.id === 'aeroport') airportEconBonus += def.econBonus;
+      else otherEconBonus += def.econBonus;
+    }
     if (def.cat === 'finance') banks++;
     if (def.id === 'aeroport') airports++;
     // Données par district
@@ -199,6 +203,11 @@ export function computeMetrics(s: GameState): Metrics {
     if (def.green || def.culture) d.greens++;
     if (def.eduP || def.eduS || def.eduH || def.health || def.safety) d.services++;
   }
+
+  // ---- Flotte de véhicules : bus/tram, trains et avions doivent être achetés pour faire fonctionner dépôts, gares et aéroports
+  const planesNeeded = airports * PLANES_PER_AIRPORT;
+  const planeFactor = airports > 0 ? clamp(s.fleet.planes / planesNeeded, 0, 1) : 0;
+  const econBonus = otherEconBonus + airportEconBonus * planeFactor;
 
   const pop = Math.max(1, s.pop);
   housingCap *= 1 + px.housingCap;
@@ -307,7 +316,7 @@ export function computeMetrics(s: GameState): Metrics {
     corp: (s.rates.corp / 100) * output,
     property: (s.rates.property / 100) * pop * 1.1 * ci,
     tickets: connectedStations * trainFactor * s.rates.transit * Math.min(1, pop / 3000) * ci,
-    planeTickets: airports * s.rates.plane * Math.min(1, pop / 8000) * ci,
+    planeTickets: airports * planeFactor * s.rates.plane * Math.min(1, pop / 8000) * ci,
     tolls: px.tollsPerTile * s.rates.toll * highwayTiles,
     transfers: L === 0 ? 0.06 * pop * ci : L === 1 ? 0.04 * pop * ci : 0,
     vat: L === 2 ? 0.07 * incomeBase : 0,
@@ -315,7 +324,9 @@ export function computeMetrics(s: GameState): Metrics {
   };
   revenue.total = revenue.income + revenue.corp + revenue.property + revenue.tickets + revenue.planeTickets + revenue.tolls + revenue.transfers + revenue.vat;
 
-  if (!s.park) upkeepRaw.transport = (upkeepRaw.transport ?? 0) + s.fleet.buses * BUS_UPKEEP + s.fleet.trains * TRAIN_UPKEEP;
+  if (!s.park) {
+    upkeepRaw.transport = (upkeepRaw.transport ?? 0) + s.fleet.buses * BUS_UPKEEP + s.fleet.trains * TRAIN_UPKEEP + s.fleet.planes * PLANE_UPKEEP;
+  }
 
   const upkeep: Record<string, number> = {};
   let upkeepTotal = 0;
@@ -364,7 +375,7 @@ export function computeMetrics(s: GameState): Metrics {
     idx, wellbeing, energySupply: supply, energyDemand, pollution: net,
     creditLimit, creditAvailable: Math.max(0, creditLimit - debt), debt, loanRate, banks,
     stations, connectedStations, lines, roadTiles, highwayTiles, railTiles, servedShare, districts, counts,
-    attract, taxPenalty, busFactor, trainFactor, busesNeeded, trainsNeeded,
+    attract, taxPenalty, busFactor, trainFactor, planeFactor, busesNeeded, trainsNeeded, planesNeeded,
   };
 }
 

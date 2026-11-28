@@ -48,13 +48,16 @@ export const FUNDING_KEY: Partial<Record<Cat, string>> = {
   transport: 'transport',
 };
 
-/** Flotte de véhicules : les dépôts et gares n'ont d'effet qu'avec des véhicules achetés. */
+/** Flotte de véhicules : les dépôts, gares et aéroports n'ont d'effet qu'avec des véhicules achetés. */
 export const BUS_COST = 80;
 export const BUS_UPKEEP = 3;
 export const TRAIN_COST = 600;
 export const TRAIN_UPKEEP = 20;
+export const PLANE_COST = 1200;
+export const PLANE_UPKEEP = 40;
 export const BUSES_PER_DEPOT = 10;
 export const TRAINS_PER_LINE = 2;
+export const PLANES_PER_AIRPORT = 3;
 
 export const FUNDING_LABEL: Record<string, string> = {
   education: 'Éducation',
