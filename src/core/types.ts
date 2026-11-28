@@ -147,6 +147,8 @@ export interface GameState {
   nextProposalTurn: number;
   fundraisers: Fundraiser[];
   customBuildings: BuildingDef[];
+  /** Véhicules achetés : sans eux, dépôts (bus/tram) et gares (trains) sont inopérants. */
+  fleet: { buses: number; trains: number };
   lastReferendum: number;
   referendums: RefResult[];
   unlocks: Record<string, number>;
@@ -213,4 +215,8 @@ export interface Metrics {
   counts: Record<string, number>;
   attract: number;
   taxPenalty: number;
+  busFactor: number;
+  trainFactor: number;
+  busesNeeded: number;
+  trainsNeeded: number;
 }

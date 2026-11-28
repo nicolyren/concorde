@@ -81,6 +81,7 @@ export function newGame(opts: NewGameOptions = {}): GameState {
     nextProposalTurn: 4,
     fundraisers: [],
     customBuildings: [],
+    fleet: { buses: 0, trains: 0 },
     lastReferendum: -10,
     referendums: [],
     unlocks: {},
@@ -160,6 +161,7 @@ export function deserialize(raw: string): GameState | null {
     if (!s.fundraisers) s.fundraisers = [];
     if (s.park === undefined) s.park = false;
     if (!s.customBuildings) s.customBuildings = [];
+    if (!s.fleet) s.fleet = { buses: 0, trains: 0 };
     for (const def of s.customBuildings) registerCustomBuilding(def);
     return s;
   } catch {

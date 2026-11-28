@@ -323,6 +323,8 @@ panel.addEventListener('click', (e) => {
       break;
     }
     case 'cancel-fundraiser': r = A.cancelFundraiser(game, Number(id)); break;
+    case 'buy-vehicle': r = A.buyVehicle(game, b.dataset.kind as 'bus' | 'train'); break;
+    case 'sell-vehicle': r = A.sellVehicle(game, b.dataset.kind as 'bus' | 'train'); break;
   }
   if (r) {
     report(r);

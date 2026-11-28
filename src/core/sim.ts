@@ -1,4 +1,7 @@
-import { B, FUNDING_KEY, P, DISTRICT_NAMES, LEVEL_POP_GOAL, LEVEL_WB_GOAL, type BuildingDef } from './content';
+import {
+  B, FUNDING_KEY, P, DISTRICT_NAMES, LEVEL_POP_GOAL, LEVEL_WB_GOAL,
+  BUS_UPKEEP, TRAIN_UPKEEP, BUSES_PER_DEPOT, TRAINS_PER_LINE, type BuildingDef,
+} from './content';
 import { neighborsOf } from './hex';
 import { rand, gauss } from './rng';
 import { pushLog, inTerritory, territoryRadius } from './state';
@@ -124,7 +127,8 @@ export function computeMetrics(s: GameState): Metrics {
 
   // ---- Agrégats par bâtiment
   let housingCap = 0, j0 = 0, j1 = 0;
-  let eduP = 0, eduS = 0, eduH = 0, health = 0, safety = 0, cult = 0, transit = 0;
+  let eduP = 0, eduS = 0, eduH = 0, health = 0, safety = 0, cult = 0;
+  let busTransit = 0, gareTransit = 0, otherTransit = 0;
   let supply = 0, pollutionRaw = 0, green = 0, absorb = 0, credit = 0, econBonus = 0, banks = 0, airports = 0;
   let thrillWeighted = 0;
   const rideTypes = new Set<string>();
@@ -175,7 +179,12 @@ export function computeMetrics(s: GameState): Metrics {
     if (def.health) health += def.health * sv;
     if (def.safety) safety += def.safety * sv;
     if (def.culture) cult += def.culture * sv;
-    if (def.transit) transit += def.transit * sv;
+    if (def.transit) {
+      const v = def.transit * sv;
+      if (def.id === 'depot') busTransit += v;
+      else if (def.id === 'gare') gareTransit += v;
+      else otherTransit += v;
+    }
     if (def.supply) supply += def.supply;
     if (def.pollution) pollutionRaw += def.pollution;
     if (def.green) green += def.green;
@@ -255,10 +264,18 @@ export function computeMetrics(s: GameState): Metrics {
   const pressure = housingCap > 0 ? pop / housingCap : 1.2;
   const housingIdx = clamp(130 - 80 * pressure + px.housing, 0, 100);
 
+  // ---- Flotte de véhicules : bus/tram et trains doivent être achetés pour faire fonctionner dépôts et gares
+  const depotCount = counts.depot ?? 0;
+  const busesNeeded = depotCount * BUSES_PER_DEPOT;
+  const busFactor = depotCount > 0 ? clamp(s.fleet.buses / busesNeeded, 0, 1) : 0;
+  const trainsNeeded = lines * TRAINS_PER_LINE;
+  const trainFactor = lines > 0 ? clamp(s.fleet.trains / trainsNeeded, 0, 1) : 0;
+  const transit = busTransit * busFactor + gareTransit * trainFactor + otherTransit;
+
   // ---- Mobilité
   const servedShare = totalBuildings > 0 ? servedCount / totalBuildings : 1;
   const roadCap = 600 * roadTiles + 2500 * highwayTiles;
-  const transitCap = transit * effOf('transport') + connectedStations * 2200;
+  const transitCap = transit * effOf('transport') + connectedStations * trainFactor * 2200;
   const mobilityIdx = clamp(
     100 * (0.4 * servedShare + 0.3 * Math.min(1, transitCap / (pop * 0.35)) + 0.3 * Math.min(1, roadCap / pop)) + px.mobility,
     0, 100,
@@ -289,7 +306,7 @@ export function computeMetrics(s: GameState): Metrics {
     income: (s.rates.income / 100) * incomeBase,
     corp: (s.rates.corp / 100) * output,
     property: (s.rates.property / 100) * pop * 1.1 * ci,
-    tickets: connectedStations * s.rates.transit * Math.min(1, pop / 3000) * ci,
+    tickets: connectedStations * trainFactor * s.rates.transit * Math.min(1, pop / 3000) * ci,
     planeTickets: airports * s.rates.plane * Math.min(1, pop / 8000) * ci,
     tolls: px.tollsPerTile * s.rates.toll * highwayTiles,
     transfers: L === 0 ? 0.06 * pop * ci : L === 1 ? 0.04 * pop * ci : 0,
@@ -297,6 +314,8 @@ export function computeMetrics(s: GameState): Metrics {
     total: 0,
   };
   revenue.total = revenue.income + revenue.corp + revenue.property + revenue.tickets + revenue.planeTickets + revenue.tolls + revenue.transfers + revenue.vat;
+
+  if (!s.park) upkeepRaw.transport = (upkeepRaw.transport ?? 0) + s.fleet.buses * BUS_UPKEEP + s.fleet.trains * TRAIN_UPKEEP;
 
   const upkeep: Record<string, number> = {};
   let upkeepTotal = 0;
@@ -345,7 +364,7 @@ export function computeMetrics(s: GameState): Metrics {
     idx, wellbeing, energySupply: supply, energyDemand, pollution: net,
     creditLimit, creditAvailable: Math.max(0, creditLimit - debt), debt, loanRate, banks,
     stations, connectedStations, lines, roadTiles, highwayTiles, railTiles, servedShare, districts, counts,
-    attract, taxPenalty,
+    attract, taxPenalty, busFactor, trainFactor, busesNeeded, trainsNeeded,
   };
 }
 

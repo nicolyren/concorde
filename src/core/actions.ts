@@ -1,5 +1,5 @@
 import {
-  B, CUSTOM_EFFECT_CAT, CUSTOM_TERRAINS, DISTRICT_NAMES, INFRA, P, POLICIES, registerCustomBuilding, unregisterCustomBuilding,
+  B, BUS_COST, TRAIN_COST, CUSTOM_EFFECT_CAT, CUSTOM_TERRAINS, DISTRICT_NAMES, INFRA, P, POLICIES, registerCustomBuilding, unregisterCustomBuilding,
   type BuildingDef, type Cat, type CustomEffect,
 } from './content';
 import { neighborsOf } from './hex';
@@ -180,6 +180,32 @@ export function setFunding(s: GameState, key: string, v: number): Result {
   if (f) return f;
   if (!(key in s.funding)) return ko('Ligne inconnue.');
   s.funding[key] = Math.max(0.5, Math.min(1.5, Math.round(v * 20) / 20));
+  return ok();
+}
+
+export function buyVehicle(s: GameState, kind: 'bus' | 'train'): Result {
+  const f = frozen(s);
+  if (f) return f;
+  if (s.park) return ko('Indisponible dans ce mode de jeu.');
+  const cost = kind === 'bus' ? BUS_COST : TRAIN_COST;
+  if (cost > s.treasury) return ko(`Fonds insuffisants (${cost} k€ requis).`);
+  s.treasury -= cost;
+  if (kind === 'bus') s.fleet.buses++;
+  else s.fleet.trains++;
+  pushLog(s, 'info', kind === 'bus' ? `Achat d’un bus/tram : ${cost} k€.` : `Achat d’un train : ${cost} k€.`);
+  return ok(kind === 'bus' ? 'Bus/tram acheté.' : 'Train acheté.');
+}
+
+export function sellVehicle(s: GameState, kind: 'bus' | 'train'): Result {
+  const f = frozen(s);
+  if (f) return f;
+  const n = kind === 'bus' ? s.fleet.buses : s.fleet.trains;
+  if (n <= 0) return ko('Aucun véhicule à revendre.');
+  const refund = Math.round((kind === 'bus' ? BUS_COST : TRAIN_COST) * 0.5);
+  if (kind === 'bus') s.fleet.buses--;
+  else s.fleet.trains--;
+  s.treasury += refund;
+  pushLog(s, 'info', kind === 'bus' ? `Bus/tram revendu : +${refund} k€.` : `Train revendu : +${refund} k€.`);
   return ok();
 }
 
