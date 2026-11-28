@@ -17,6 +17,7 @@ export class LifeView {
   state: LifeState | null = null;
   walkerX = 0;
   walkerY = 0;
+  driving = false;
   private walkBob = 0;
 
   constructor(public canvas: HTMLCanvasElement) {
@@ -63,13 +64,18 @@ export class LifeView {
     this.requestDraw();
   }
 
-  /** Déplace le personnage en espace monde ; bloqué par l'eau, les montagnes et le bord de la carte. */
-  stepWalker(dx: number, dy: number, s: LifeState) {
+  /**
+   * Déplace le personnage en espace monde ; bloqué par l'eau, les montagnes et le bord de la carte.
+   * En voiture, interdit aussi de quitter la route (sauf sur les bâtiments, pour pouvoir se garer).
+   */
+  stepWalker(dx: number, dy: number, s: LifeState, driving: boolean) {
     const passable = (x: number, y: number) => {
       const idx = pixelToHex(x, y, SIZE, s.W, s.H);
       if (idx < 0) return false;
-      const t = s.tiles[idx].terrain;
-      return t !== 'water' && t !== 'mountain';
+      const t = s.tiles[idx];
+      if (t.terrain === 'water' || t.terrain === 'mountain') return false;
+      if (driving && !t.road && !t.building) return false;
+      return true;
     };
     const nx = this.walkerX + dx;
     if (passable(nx, this.walkerY)) this.walkerX = nx;
@@ -141,6 +147,11 @@ export class LifeView {
         ctx.fillStyle = grad;
         ctx.fill();
       }
+      if (t.road) {
+        this.hexPath(sp.x, sp.y, r * 0.58);
+        ctx.fillStyle = 'rgba(214,201,173,.6)';
+        ctx.fill();
+      }
       if (t.terrain === 'mountain') {
         ctx.fillStyle = 'rgba(255,255,255,.55)';
         ctx.font = `${r * 0.9}px system-ui`;
@@ -178,9 +189,9 @@ export class LifeView {
     ctx.ellipse(wx, wy + r * 0.55, r * 0.38, r * 0.14, 0, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,0,0,.3)';
     ctx.fill();
-    ctx.font = `${r * 1.15}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
+    ctx.font = `${r * (this.driving ? 1.3 : 1.15)}px "Apple Color Emoji","Segoe UI Emoji",system-ui`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🧑', wx, wy + bob);
+    ctx.fillText(this.driving ? '🚗' : '🧑', wx, wy + bob);
   }
 }

@@ -1,5 +1,5 @@
 import { generateMap } from './mapgen';
-import { hexDist } from './hex';
+import { hexDist, neighborsOf } from './hex';
 import { makeRng } from './rng';
 import type { Terrain } from './types';
 
@@ -8,6 +8,8 @@ export type LifeBuilding = 'maison' | 'supermarche' | 'travail';
 export interface LifeTile {
   terrain: Terrain;
   building: LifeBuilding | null;
+  /** Route/trottoir : réservé aux voitures en mode conduite, libre pour les piétons. */
+  road: boolean;
 }
 
 export interface LifeState {
@@ -22,6 +24,10 @@ export interface LifeState {
   budget: number;
   /** 0 = repu, 100 = affamé. */
   hunger: number;
+  /** 0 = repos, 100 = épuisé. */
+  fatigue: number;
+  hasCar: boolean;
+  driving: boolean;
   log: string[];
 }
 
@@ -37,12 +43,41 @@ export const LIFE_H = 17;
 export const FOOD_COST = 12;
 export const WORK_PAY = 45;
 export const HUNGER_PER_WORK = 30;
+export const FATIGUE_PER_WORK = 25;
+export const CAR_COST = 300;
+export const CAR_SPEED_MULT = 2.2;
 export const START_BUDGET = 60;
+
+/** Plus court chemin (en tuiles franchissables) entre deux cases, pour tracer les routes. */
+function roadPath(tiles: LifeTile[], W: number, H: number, from: number, to: number): number[] {
+  if (from === to) return [from];
+  const prev = new Int32Array(tiles.length).fill(-1);
+  const seen = new Uint8Array(tiles.length);
+  seen[from] = 1;
+  const queue = [from];
+  for (let qi = 0; qi < queue.length; qi++) {
+    const cur = queue[qi];
+    if (cur === to) break;
+    for (const nb of neighborsOf(cur, W, H)) {
+      if (seen[nb] || tiles[nb].terrain === 'water' || tiles[nb].terrain === 'mountain') continue;
+      seen[nb] = 1;
+      prev[nb] = cur;
+      queue.push(nb);
+    }
+  }
+  if (!seen[to]) return [];
+  const path: number[] = [];
+  for (let cur = to; cur !== -1; cur = prev[cur]) {
+    path.push(cur);
+    if (cur === from) break;
+  }
+  return path.reverse();
+}
 
 /** Un petit pays déjà parfaitement en place : on ne le construit pas, on y vit. */
 export function newLife(seed: number = Date.now() >>> 0): LifeState {
   const { tiles: genTiles, capital } = generateMap(seed, LIFE_W, LIFE_H);
-  const tiles: LifeTile[] = genTiles.map((t) => ({ terrain: t.terrain, building: null }));
+  const tiles: LifeTile[] = genTiles.map((t) => ({ terrain: t.terrain, building: null, road: false }));
   const rng = makeRng((seed ^ 0x51ed9a3) >>> 0);
   const cand: number[] = [];
   for (let i = 0; i < tiles.length; i++) {
@@ -62,9 +97,12 @@ export function newLife(seed: number = Date.now() >>> 0): LifeState {
   tiles[capital].building = 'maison';
   tiles[shop].building = 'supermarche';
   tiles[job].building = 'travail';
+  for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, shop)) tiles[i].road = true;
+  for (const i of roadPath(tiles, LIFE_W, LIFE_H, capital, job)) tiles[i].road = true;
+  for (const i of roadPath(tiles, LIFE_W, LIFE_H, shop, job)) tiles[i].road = true;
   return {
     seed, W: LIFE_W, H: LIFE_H, tiles, home: capital, shop, job,
-    day: 1, budget: START_BUDGET, hunger: 20,
+    day: 1, budget: START_BUDGET, hunger: 20, fatigue: 10, hasCar: false, driving: false,
     log: ['Bienvenue dans votre nouvelle vie !'],
   };
 }
@@ -83,13 +121,35 @@ export function buyFood(s: LifeState): LifeResult {
 }
 
 export function goToWork(s: LifeState): LifeResult {
-  const malus = s.hunger >= 100;
+  const malus = s.hunger >= 100 || s.fatigue >= 100;
   const pay = malus ? Math.round(WORK_PAY * 0.5) : WORK_PAY;
   s.budget += pay;
   s.hunger = Math.min(100, s.hunger + HUNGER_PER_WORK);
+  s.fatigue = Math.min(100, s.fatigue + FATIGUE_PER_WORK);
   s.day++;
-  pushLog(s, malus ? `Jour ${s.day - 1} : journée difficile, trop faim (+${pay}€).` : `Jour ${s.day - 1} : journée de travail (+${pay}€).`);
-  return ok(malus ? `💼 Journée difficile (trop faim) : +${pay}€ seulement.` : `💼 Journée de travail : +${pay}€.`);
+  pushLog(s, malus ? `Jour ${s.day - 1} : journée difficile, trop faim ou trop fatigué (+${pay}€).` : `Jour ${s.day - 1} : journée de travail (+${pay}€).`);
+  return ok(malus ? `💼 Journée difficile (trop faim ou trop fatigué) : +${pay}€ seulement.` : `💼 Journée de travail : +${pay}€.`);
+}
+
+export function goHome(s: LifeState): LifeResult {
+  s.fatigue = 0;
+  pushLog(s, `Jour ${s.day} : retour à la maison pour se reposer.`);
+  return ok('🏠 Vous rentrez chez vous et vous reposez.');
+}
+
+export function buyCar(s: LifeState): LifeResult {
+  if (s.hasCar) return ko('Vous avez déjà une voiture.');
+  if (s.budget < CAR_COST) return ko('Fonds insuffisants pour acheter une voiture.');
+  s.budget -= CAR_COST;
+  s.hasCar = true;
+  pushLog(s, `Jour ${s.day} : achat d’une voiture (-${CAR_COST}€).`);
+  return ok(`🚗 Voiture achetée : -${CAR_COST}€.`);
+}
+
+export function toggleDriving(s: LifeState): LifeResult {
+  if (!s.hasCar) return ko('Vous n’avez pas encore de voiture.');
+  s.driving = !s.driving;
+  return ok(s.driving ? '🚗 Vous prenez le volant.' : '🚶 Vous descendez de voiture.');
 }
 
 export function serializeLife(s: LifeState): string {
@@ -100,6 +160,10 @@ export function deserializeLife(raw: string): LifeState | null {
   try {
     const s = JSON.parse(raw) as LifeState;
     if (!s || !Array.isArray(s.tiles) || typeof s.home !== 'number') return null;
+    if (s.fatigue === undefined) s.fatigue = 0;
+    if (s.hasCar === undefined) s.hasCar = false;
+    if (s.driving === undefined) s.driving = false;
+    for (const t of s.tiles) if (t.road === undefined) t.road = false;
     return s;
   } catch {
     return null;

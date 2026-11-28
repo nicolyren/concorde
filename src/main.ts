@@ -9,7 +9,7 @@ import type { GameState, Metrics, Zone } from './core/types';
 import { MapView, type Overlay } from './ui/mapview';
 import * as P from './ui/panels';
 import { deleteGame, listGames, loadGame, migrateLegacySave, newId, saveGame } from './ui/saves';
-import { buyFood, goToWork, newLife, FOOD_COST, WORK_PAY, type LifeState } from './core/life';
+import { buyFood, goToWork, goHome, buyCar, toggleDriving, newLife, FOOD_COST, WORK_PAY, CAR_COST, CAR_SPEED_MULT, type LifeState } from './core/life';
 import { LifeView } from './ui/lifeview';
 import { loadLifeSave, saveLifeSave } from './ui/lifesave';
 
@@ -326,16 +326,30 @@ let lifeLast = 0;
 function renderLifeHud() {
   if (!life) return;
   const hungry = life.hunger >= 70;
+  const tired = life.fatigue >= 70;
   $('life-stats').innerHTML = `
     <span class="chip">📅 Jour <b>${life.day}</b></span>
     <span class="chip ${life.budget < 0 ? 'bad' : ''}">💰 <b>${life.budget}€</b></span>
-    <span class="chip ${hungry ? 'bad' : ''}">🍽️ Faim <b>${life.hunger}</b>/100</span>`;
+    <span class="chip ${hungry ? 'bad' : ''}">🍽️ Faim <b>${life.hunger}</b>/100</span>
+    <span class="chip ${tired ? 'bad' : ''}">😴 Fatigue <b>${life.fatigue}</b>/100</span>
+    ${life.hasCar ? `<span class="chip">${life.driving ? '🚗 En voiture' : '🚶 À pied'}</span>` : ''}`;
   const nearShop = lifeView.nearTile(life, life.shop);
   const nearJob = lifeView.nearTile(life, life.job);
+  const nearHome = lifeView.nearTile(life, life.home);
   let html = '';
   if (nearShop) html += `<button class="primary" id="life-buy">🛒 Acheter à manger (${FOOD_COST}€)</button>`;
   if (nearJob) html += `<button class="primary" id="life-work">💼 Aller travailler (+${WORK_PAY}€)</button>`;
+  if (nearHome) {
+    html += `<button class="primary" id="life-rest">🏠 Rentrer se reposer</button>`;
+    if (!life.hasCar) html += `<button id="life-car">🚗 Acheter une voiture (${CAR_COST}€)</button>`;
+  }
+  if (life.hasCar) {
+    html += life.driving
+      ? `<button id="life-drive">🚶 Descendre de voiture</button>`
+      : nearHome ? `<button id="life-drive">🚗 Prendre la voiture</button>` : '';
+  }
   $('life-actions').innerHTML = html;
+  lifeView.driving = life.driving;
 }
 
 function lifeTick(ts: number) {
@@ -350,8 +364,9 @@ function lifeTick(ts: number) {
   lifeLast = ts;
   if (dx || dy) {
     const len = Math.hypot(dx, dy);
-    const step = (LIFE_SPEED * dt) / len;
-    lifeView.stepWalker(dx * step, dy * step, life);
+    const speed = LIFE_SPEED * (life.driving ? CAR_SPEED_MULT : 1);
+    const step = (speed * dt) / len;
+    lifeView.stepWalker(dx * step, dy * step, life, life.driving);
     lifeView.centerOnWorld(lifeView.walkerX, lifeView.walkerY);
     lifeView.requestDraw();
     renderLifeHud();
@@ -368,13 +383,18 @@ function startLifeLoop() {
 $('home-new-life').addEventListener('click', () => {
   life = loadLifeSave() ?? newLife();
   showLife();
-  toast('Bienvenue ! Déplacez-vous pour aller faire vos courses ou au travail.');
+  toast('Bienvenue ! Déplacez-vous pour aller faire vos courses, travailler, ou rentrer vous reposer.');
 });
 $('life-quit').addEventListener('click', quitLife);
 $('life-actions').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest('button');
   if (!b || !life) return;
-  const r = b.id === 'life-buy' ? buyFood(life) : b.id === 'life-work' ? goToWork(life) : null;
+  const r = b.id === 'life-buy' ? buyFood(life)
+    : b.id === 'life-work' ? goToWork(life)
+    : b.id === 'life-rest' ? goHome(life)
+    : b.id === 'life-car' ? buyCar(life)
+    : b.id === 'life-drive' ? toggleDriving(life)
+    : null;
   if (r) {
     toast(r.msg, !r.ok);
     if (r.ok) {
